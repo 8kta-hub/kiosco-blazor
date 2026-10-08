@@ -1,0 +1,55 @@
+﻿@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+<button type="button"
+        class="btn-tema"
+        @onclick="AlternarAsync"
+        aria-pressed="@(esOscuro ? "true" : "false")"
+        aria-label="@(esOscuro ? "Cambiar a modo claro" : "Cambiar a modo oscuro")"
+        title="@(esOscuro ? "Modo claro" : "Modo oscuro")">
+    <i class="bi @(esOscuro ? "bi-sun" : "bi-moon-stars")" aria-hidden="true"></i>
+</button>
+
+@code {
+    private IJSObjectReference? modulo;
+    private bool esOscuro;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            return;
+        }
+
+        modulo = await JS.InvokeAsync<IJSObjectReference>("import", "./js/kiosco.js");
+        string tema = await modulo.InvokeAsync<string>("iniciarTema");
+        esOscuro = tema == "oscuro";
+        StateHasChanged();
+    }
+
+    private async Task AlternarAsync()
+    {
+        if (modulo is null)
+        {
+            return;
+        }
+
+        string tema = await modulo.InvokeAsync<string>("alternarTema");
+        esOscuro = tema == "oscuro";
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (modulo is not null)
+        {
+            try
+            {
+                await modulo.DisposeAsync();
+            }
+            catch (Microsoft.JSInterop.JSDisconnectedException)
+            {
+                // El circuito ya se cerró: no hay nada que liberar.
+            }
+        }
+    }
+}
