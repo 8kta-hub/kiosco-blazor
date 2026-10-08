@@ -1,23 +1,27 @@
 ﻿@inherits LayoutComponentBase
 
-<div class="page">
-    <div class="sidebar">
+<div class="pagina">
+    <header class="encabezado">
+        <a class="marca" href="/">
+            <i class="bi bi-shop" aria-hidden="true"></i> Kiosco
+        </a>
         <NavMenu />
-    </div>
+        <BotonTema />
+    </header>
 
-    <main>
-        <div class="top-row px-4">
-            <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a>
-        </div>
-
-        <article class="content px-4">
+    <main class="contenido">
+        <article>
             @Body
         </article>
     </main>
+
+    <footer class="pie">
+        <p>Kiosco &copy; @DateTime.Now.Year &middot; Proyecto Integrador</p>
+    </footer>
 </div>
 
 <div id="blazor-error-ui" data-nosnippet>
-    An unhandled error has occurred.
-    <a href="." class="reload">Reload</a>
+    Ocurrió un error inesperado.
+    <a href="." class="reload">Recargar</a>
     <span class="dismiss">🗙</span>
 </div>
