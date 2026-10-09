@@ -1,0 +1,22 @@
+.btn-tema {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    border: 1px solid var(--color-borde);
+    border-radius: var(--radio-borde);
+    background-color: var(--color-superficie);
+    color: var(--color-texto);
+    cursor: pointer;
+}
+
+    .btn-tema:hover {
+        background-color: var(--color-fondo);
+    }
+
+    .btn-tema:focus-visible {
+        outline: 2px solid var(--color-primario);
+        outline-offset: 2px;
+    }
