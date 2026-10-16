@@ -55,4 +55,70 @@ public class ProductoService : IProductoService
             TamanioPagina = tamanioPagina
         };
     }
+
+    public async Task<Producto?> ObtenerPorIdAsync(int id)
+    {
+        await using var contexto = await _fabrica.CreateDbContextAsync();
+
+        return await contexto.Productos
+            .AsNoTracking()
+            .FirstOrDefaultAsync(p => p.Id == id);
+    }
+
+    public async Task<Producto> CrearAsync(Producto producto)
+    {
+        Normalizar(producto);
+        producto.Id = 0;
+        producto.Categoria = null;
+
+        await using var contexto = await _fabrica.CreateDbContextAsync();
+
+        contexto.Productos.Add(producto);
+        await contexto.SaveChangesAsync();
+
+        return producto;
+    }
+
+    public async Task ActualizarAsync(Producto producto)
+    {
+        Normalizar(producto);
+
+        await using var contexto = await _fabrica.CreateDbContextAsync();
+
+        Producto existente = await contexto.Productos.FindAsync(producto.Id)
+            ?? throw new InvalidOperationException("El producto ya no existe.");
+
+        // Se copian solo los campos editables: el stock actual no se toca desde el formulario.
+        existente.Nombre = producto.Nombre;
+        existente.CodigoBarras = producto.CodigoBarras;
+        existente.PrecioCosto = producto.PrecioCosto;
+        existente.PrecioVenta = producto.PrecioVenta;
+        existente.StockMinimo = producto.StockMinimo;
+        existente.Activo = producto.Activo;
+        existente.CategoriaId = producto.CategoriaId;
+
+        await contexto.SaveChangesAsync();
+    }
+
+    public async Task EliminarAsync(int id)
+    {
+        await using var contexto = await _fabrica.CreateDbContextAsync();
+
+        Producto? producto = await contexto.Productos.FindAsync(id);
+        if (producto is null)
+        {
+            return;
+        }
+
+        contexto.Productos.Remove(producto);
+        await contexto.SaveChangesAsync();
+    }
+
+    private static void Normalizar(Producto producto)
+    {
+        producto.Nombre = producto.Nombre.Trim();
+        producto.CodigoBarras = string.IsNullOrWhiteSpace(producto.CodigoBarras)
+            ? null
+            : producto.CodigoBarras.Trim();
+    }
 }

@@ -18,8 +18,9 @@ var cadenaConexion = builder.Configuration.GetConnectionString("Default")
 builder.Services.AddDbContextFactory<KioscoDbContext>(opciones =>
     opciones.UseSqlServer(cadenaConexion));
 
-// NUEVO (M3.1): servicios de datos
+// Servicios de datos
 builder.Services.AddScoped<IProductoService, ProductoService>();
+builder.Services.AddScoped<ICategoriaService, CategoriaService>(); // NUEVO (M3.2)
 
 var app = builder.Build();
 
