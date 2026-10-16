@@ -1,0 +1,192 @@
+﻿@page "/productos/nuevo"
+@page "/productos/{Id:int}"
+@inject IProductoService ProductoService
+@inject ICategoriaService CategoriaService
+@inject NavigationManager Nav
+
+<PageTitle>@Titulo</PageTitle>
+
+<section aria-labelledby="titulo-formulario">
+    <h1 id="titulo-formulario" class="h3 mb-3">@Titulo</h1>
+
+    <AlertError Mensaje="@mensajeError" OnCerrar="CerrarError" />
+
+    @if (cargando)
+    {
+        <div class="d-flex align-items-center gap-2" role="status">
+            <div class="spinner-border spinner-border-sm" aria-hidden="true"></div>
+            <span>Cargando…</span>
+        </div>
+    }
+    else if (cargado)
+    {
+        <div class="row">
+            <div class="col-12 col-lg-8">
+                <EditForm Model="producto" OnValidSubmit="GuardarAsync" class="tarjeta">
+                    <DataAnnotationsValidator />
+
+                    <div class="mb-3">
+                        <label for="nombre" class="form-label">Nombre *</label>
+                        <InputText id="nombre" class="form-control" @bind-Value="producto.Nombre" />
+                        <ValidationMessage For="() => producto.Nombre" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="categoria" class="form-label">Categoría *</label>
+                        <InputSelect id="categoria" class="form-select" @bind-Value="producto.CategoriaId">
+                            <option value="0">Seleccioná una categoría</option>
+                            @foreach (var categoria in categorias)
+                            {
+                                <option value="@categoria.Id">@categoria.Nombre</option>
+                            }
+                        </InputSelect>
+                        <ValidationMessage For="() => producto.CategoriaId" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="codigo" class="form-label">Código de barras (opcional)</label>
+                        <InputText id="codigo" class="form-control" @bind-Value="producto.CodigoBarras" />
+                        <ValidationMessage For="() => producto.CodigoBarras" />
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-12 col-sm-6">
+                            <label for="costo" class="form-label">Precio de costo *</label>
+                            <InputNumber id="costo" class="form-control" @bind-Value="producto.PrecioCosto" />
+                            <ValidationMessage For="() => producto.PrecioCosto" />
+                        </div>
+                        <div class="col-12 col-sm-6">
+                            <label for="venta" class="form-label">Precio de venta *</label>
+                            <InputNumber id="venta" class="form-control" @bind-Value="producto.PrecioVenta" />
+                            <ValidationMessage For="() => producto.PrecioVenta" />
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-12 col-sm-6">
+                            <label for="stock" class="form-label">Stock actual</label>
+                            <InputNumber id="stock" class="form-control" @bind-Value="producto.StockActual"
+                                         disabled="@(!EsNuevo)" />
+                            @if (!EsNuevo)
+                            {
+                                <div class="form-text">El stock se modifica desde la pantalla de Stock.</div>
+                            }
+                            <ValidationMessage For="() => producto.StockActual" />
+                        </div>
+                        <div class="col-12 col-sm-6">
+                            <label for="minimo" class="form-label">Stock mínimo</label>
+                            <InputNumber id="minimo" class="form-control" @bind-Value="producto.StockMinimo" />
+                            <ValidationMessage For="() => producto.StockMinimo" />
+                        </div>
+                    </div>
+
+                    <div class="form-check mb-3">
+                        <InputCheckbox id="activo" class="form-check-input" @bind-Value="producto.Activo" />
+                        <label for="activo" class="form-check-label">Producto activo</label>
+                    </div>
+
+                    <div class="d-flex flex-wrap gap-2">
+                        <button type="submit" class="btn btn-primary" disabled="@guardando">
+                            @if (guardando)
+                            {
+                                <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                            }
+                            Guardar
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" @onclick="Cancelar">
+                            Cancelar
+                        </button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    }
+    else
+    {
+        <a href="productos">Volver a productos</a>
+    }
+</section>
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private Producto producto = new();
+    private List<Categoria> categorias = new();
+    private bool cargando = true;
+    private bool cargado;
+    private bool guardando;
+    private string? mensajeError;
+
+    private bool EsNuevo => Id == 0;
+
+    private string Titulo => EsNuevo ? "Nuevo producto" : "Editar producto";
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            categorias = await CategoriaService.ObtenerTodasAsync();
+
+            if (EsNuevo)
+            {
+                cargado = true;
+            }
+            else
+            {
+                Producto? existente = await ProductoService.ObtenerPorIdAsync(Id);
+                if (existente is null)
+                {
+                    mensajeError = "No se encontró el producto que querés editar.";
+                }
+                else
+                {
+                    producto = existente;
+                    cargado = true;
+                }
+            }
+        }
+        catch (Exception)
+        {
+            mensajeError = "No se pudo cargar el formulario. Probá de nuevo en unos segundos.";
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private async Task GuardarAsync()
+    {
+        guardando = true;
+        mensajeError = null;
+
+        try
+        {
+            if (EsNuevo)
+            {
+                await ProductoService.CrearAsync(producto);
+            }
+            else
+            {
+                await ProductoService.ActualizarAsync(producto);
+            }
+
+            Nav.NavigateTo("/productos");
+        }
+        catch (Exception)
+        {
+            mensajeError = "No se pudo guardar el producto. Revisá los datos e intentá de nuevo.";
+            guardando = false;
+        }
+    }
+
+    private void Cancelar()
+    {
+        Nav.NavigateTo("/productos");
+    }
+
+    private void CerrarError()
+    {
+        mensajeError = null;
+    }
+}

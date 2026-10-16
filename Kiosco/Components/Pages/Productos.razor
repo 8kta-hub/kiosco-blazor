@@ -1,0 +1,193 @@
+﻿@page "/productos"
+@using System.Globalization
+@inject IProductoService ProductoService
+
+<PageTitle>Productos</PageTitle>
+
+<section aria-labelledby="titulo-productos">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <h1 id="titulo-productos" class="h3 mb-0">Productos</h1>
+        <a class="btn btn-primary" href="productos/nuevo">
+            <i class="bi bi-plus-lg" aria-hidden="true"></i> Nuevo producto
+        </a>
+    </div>
+
+    <form class="d-flex gap-2 mb-3" role="search" @onsubmit="BuscarAsync" @onsubmit:preventDefault>
+        <label for="buscador" class="visually-hidden">Buscar producto por nombre</label>
+        <input id="buscador" type="search" class="form-control" placeholder="Buscar por nombre"
+               @bind="textoBusqueda" @bind:event="oninput" />
+        <button type="submit" class="btn btn-primary">
+            <i class="bi bi-search" aria-hidden="true"></i>
+            <span class="visually-hidden">Buscar</span>
+        </button>
+    </form>
+
+    <AlertError Mensaje="@mensajeError" OnCerrar="CerrarError" />
+
+    @if (cargando)
+    {
+        <div class="d-flex align-items-center gap-2" role="status">
+            <div class="spinner-border spinner-border-sm" aria-hidden="true"></div>
+            <span>Cargando productos…</span>
+        </div>
+    }
+    else if (resultado is not null)
+    {
+        @if (resultado.Items.Count == 0)
+        {
+            <p class="text-secondary">No se encontraron productos.</p>
+        }
+        else
+        {
+            <p class="text-secondary small mb-2">@resultado.TotalItems productos</p>
+
+            <div class="table-responsive tarjeta p-0 mb-3">
+                <table class="table table-hover align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th scope="col">Nombre</th>
+                            <th scope="col">Categoría</th>
+                            <th scope="col" class="text-end">Precio de venta</th>
+                            <th scope="col" class="text-center">Stock</th>
+                            <th scope="col" class="text-end"><span class="visually-hidden">Acciones</span></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var producto in resultado.Items)
+                        {
+                            <tr>
+                                <td>
+                                    @producto.Nombre
+                                    @if (!string.IsNullOrWhiteSpace(producto.CodigoBarras))
+                                    {
+                                        <div class="small text-secondary">@producto.CodigoBarras</div>
+                                    }
+                                </td>
+                                <td>@producto.Categoria?.Nombre</td>
+                                <td class="text-end">@producto.PrecioVenta.ToString("C", Cultura)</td>
+                                <td class="text-center"><BadgeStock Stock="producto.StockActual" Minimo="producto.StockMinimo" /></td>
+                                <td class="text-end text-nowrap">
+                                    <a class="btn btn-sm btn-outline-primary" href="productos/@producto.Id"
+                                       title="Editar" aria-label="Editar @producto.Nombre">
+                                        <i class="bi bi-pencil" aria-hidden="true"></i>
+                                    </a>
+                                    <button type="button" class="btn btn-sm btn-outline-danger"
+                                            title="Eliminar" aria-label="Eliminar @producto.Nombre"
+                                            @onclick="() => PedirEliminar(producto)">
+                                        <i class="bi bi-trash" aria-hidden="true"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <Paginacion PaginaActual="paginaActual" TotalPaginas="resultado.TotalPaginas" OnCambio="CambiarPaginaAsync" />
+        }
+    }
+
+    <ConfirmDialog Visible="productoAEliminar is not null"
+                   Titulo="Eliminar producto"
+                   Mensaje="@MensajeEliminar"
+                   TextoConfirmar="Eliminar"
+                   OnConfirmar="ConfirmarEliminarAsync"
+                   OnCancelar="CancelarEliminar" />
+</section>
+
+@code {
+    private const int TamanioPagina = 5;
+
+    private static readonly CultureInfo Cultura = new("es-AR");
+
+    private PagedResult<Producto>? resultado;
+    private string textoBusqueda = string.Empty;
+    private string? busquedaAplicada;
+    private int paginaActual = 1;
+    private bool cargando = true;
+    private string? mensajeError;
+    private Producto? productoAEliminar;
+
+    private string MensajeEliminar =>
+        $"¿Seguro que querés eliminar «{productoAEliminar?.Nombre}»? Esta acción no se puede deshacer.";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarAsync();
+    }
+
+    private async Task CargarAsync()
+    {
+        cargando = true;
+        mensajeError = null;
+
+        try
+        {
+            resultado = await ProductoService.ObtenerPaginadoAsync(busquedaAplicada, paginaActual, TamanioPagina);
+        }
+        catch (Exception)
+        {
+            mensajeError = "No se pudieron cargar los productos. Probá de nuevo en unos segundos.";
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private async Task BuscarAsync()
+    {
+        busquedaAplicada = textoBusqueda.Trim();
+        paginaActual = 1;
+        await CargarAsync();
+    }
+
+    private async Task CambiarPaginaAsync(int pagina)
+    {
+        paginaActual = pagina;
+        await CargarAsync();
+    }
+
+    private void PedirEliminar(Producto producto)
+    {
+        productoAEliminar = producto;
+    }
+
+    private void CancelarEliminar()
+    {
+        productoAEliminar = null;
+    }
+
+    private async Task ConfirmarEliminarAsync()
+    {
+        if (productoAEliminar is null)
+        {
+            return;
+        }
+
+        int id = productoAEliminar.Id;
+        productoAEliminar = null;
+
+        try
+        {
+            await ProductoService.EliminarAsync(id);
+            await CargarAsync();
+
+            // Si se borró el último producto de la última página, se vuelve una página atrás.
+            if (resultado is not null && resultado.Items.Count == 0 && paginaActual > 1)
+            {
+                paginaActual--;
+                await CargarAsync();
+            }
+        }
+        catch (Exception)
+        {
+            mensajeError = "No se pudo eliminar el producto.";
+        }
+    }
+
+    private void CerrarError()
+    {
+        mensajeError = null;
+    }
+}

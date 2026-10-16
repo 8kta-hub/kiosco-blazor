@@ -5,7 +5,7 @@ namespace Kiosco.Models;
 /// <summary>
 /// Producto que se vende en el kiosco, con sus precios y su stock.
 /// </summary>
-public class Producto
+public class Producto : IValidatableObject
 {
     public int Id { get; set; }
 
@@ -14,6 +14,7 @@ public class Producto
     public string Nombre { get; set; } = string.Empty;
 
     [StringLength(50, ErrorMessage = "El código de barras no puede superar los 50 caracteres.")]
+    [CustomValidation(typeof(ValidacionesProducto), nameof(ValidacionesProducto.ValidarCodigoBarras))]
     public string? CodigoBarras { get; set; }
 
     [Range(0.01, 10000000, ErrorMessage = "El precio de costo debe ser mayor que cero.")]
@@ -34,4 +35,17 @@ public class Producto
     public int CategoriaId { get; set; }
 
     public Categoria? Categoria { get; set; }
+
+    /// <summary>
+    /// Validación entre campos: se ejecuta al enviar el formulario, cuando los atributos ya pasaron.
+    /// </summary>
+    public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+    {
+        if (PrecioVenta < PrecioCosto)
+        {
+            yield return new ValidationResult(
+                "El precio de venta no puede ser menor que el costo.",
+                new[] { nameof(PrecioVenta) });
+        }
+    }
 }

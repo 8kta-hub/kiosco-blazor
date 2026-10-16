@@ -1,5 +1,6 @@
 using Kiosco.Components;
 using Kiosco.Data;
+using Kiosco.Services;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -8,18 +9,22 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
-// NUEVO: cadena de conexión (en desarrollo viene de User Secrets)
+// Cadena de conexión (en desarrollo viene de User Secrets)
 var cadenaConexion = builder.Configuration.GetConnectionString("Default")
     ?? throw new InvalidOperationException(
         "Falta la cadena de conexión 'Default'. Configurala en User Secrets (desarrollo) o en App Settings (producción).");
 
-// NUEVO: fábrica de contextos de EF Core
+// Fábrica de contextos de EF Core
 builder.Services.AddDbContextFactory<KioscoDbContext>(opciones =>
     opciones.UseSqlServer(cadenaConexion));
 
+// Servicios de datos
+builder.Services.AddScoped<IProductoService, ProductoService>();
+builder.Services.AddScoped<ICategoriaService, CategoriaService>(); // NUEVO (M3.2)
+
 var app = builder.Build();
 
-// NUEVO: aplicar las migraciones pendientes al iniciar
+// Aplicar las migraciones pendientes al iniciar
 var fabrica = app.Services.GetRequiredService<IDbContextFactory<KioscoDbContext>>();
 await using (var contexto = await fabrica.CreateDbContextAsync())
 {
