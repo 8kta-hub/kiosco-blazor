@@ -1,0 +1,45 @@
+﻿@if (Visible)
+{
+    <div class="contenedor">
+        <div class="fondo" aria-hidden="true" @onclick="CancelarAsync"></div>
+
+        <div class="dialogo" role="dialog" aria-modal="true"
+             aria-labelledby="dialogo-titulo" aria-describedby="dialogo-mensaje">
+            <h2 id="dialogo-titulo" class="h5">@Titulo</h2>
+            <p id="dialogo-mensaje">@Mensaje</p>
+
+            <div class="acciones">
+                <button type="button" class="btn btn-outline-secondary" @onclick="CancelarAsync">
+                    Cancelar
+                </button>
+                <button type="button" class="btn btn-danger" @onclick="ConfirmarAsync">
+                    @TextoConfirmar
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    /// <summary>Indica si el cuadro de diálogo se muestra.</summary>
+    [Parameter] public bool Visible { get; set; }
+
+    /// <summary>Título del cuadro.</summary>
+    [Parameter] public string Titulo { get; set; } = "Confirmar";
+
+    /// <summary>Texto que explica qué se va a confirmar.</summary>
+    [Parameter] public string Mensaje { get; set; } = string.Empty;
+
+    /// <summary>Texto del botón de confirmación.</summary>
+    [Parameter] public string TextoConfirmar { get; set; } = "Aceptar";
+
+    /// <summary>Se dispara cuando el usuario confirma.</summary>
+    [Parameter] public EventCallback OnConfirmar { get; set; }
+
+    /// <summary>Se dispara cuando el usuario cancela o hace clic en el fondo.</summary>
+    [Parameter] public EventCallback OnCancelar { get; set; }
+
+    private Task ConfirmarAsync() => OnConfirmar.InvokeAsync();
+
+    private Task CancelarAsync() => OnCancelar.InvokeAsync();
+}
