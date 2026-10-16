@@ -1,0 +1,127 @@
+﻿@page "/productos"
+@using System.Globalization
+@inject IProductoService ProductoService
+
+<PageTitle>Productos</PageTitle>
+
+<section aria-labelledby="titulo-productos">
+    <h1 id="titulo-productos" class="h3 mb-3">Productos</h1>
+
+    <form class="d-flex gap-2 mb-3" role="search" @onsubmit="BuscarAsync" @onsubmit:preventDefault>
+        <label for="buscador" class="visually-hidden">Buscar producto por nombre</label>
+        <input id="buscador" type="search" class="form-control" placeholder="Buscar por nombre"
+               @bind="textoBusqueda" @bind:event="oninput" />
+        <button type="submit" class="btn btn-primary">
+            <i class="bi bi-search" aria-hidden="true"></i>
+            <span class="visually-hidden">Buscar</span>
+        </button>
+    </form>
+
+    <AlertError Mensaje="@mensajeError" OnCerrar="CerrarError" />
+
+    @if (cargando)
+    {
+        <div class="d-flex align-items-center gap-2" role="status">
+            <div class="spinner-border spinner-border-sm" aria-hidden="true"></div>
+            <span>Cargando productos…</span>
+        </div>
+    }
+    else if (resultado is not null)
+    {
+        @if (resultado.Items.Count == 0)
+        {
+            <p class="text-secondary">No se encontraron productos.</p>
+        }
+        else
+        {
+            <p class="text-secondary small mb-2">@resultado.TotalItems productos</p>
+
+            <div class="table-responsive tarjeta p-0 mb-3">
+                <table class="table table-hover align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th scope="col">Nombre</th>
+                            <th scope="col">Categoría</th>
+                            <th scope="col" class="text-end">Precio de venta</th>
+                            <th scope="col" class="text-center">Stock</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var producto in resultado.Items)
+                        {
+                            <tr>
+                                <td>
+                                    @producto.Nombre
+                                    @if (!string.IsNullOrWhiteSpace(producto.CodigoBarras))
+                                    {
+                                        <div class="small text-secondary">@producto.CodigoBarras</div>
+                                    }
+                                </td>
+                                <td>@producto.Categoria?.Nombre</td>
+                                <td class="text-end">@producto.PrecioVenta.ToString("C", Cultura)</td>
+                                <td class="text-center"><BadgeStock Stock="producto.StockActual" Minimo="producto.StockMinimo" /></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <Paginacion PaginaActual="paginaActual" TotalPaginas="resultado.TotalPaginas" OnCambio="CambiarPaginaAsync" />
+        }
+    }
+</section>
+
+@code {
+    private const int TamanioPagina = 5;
+
+    private static readonly CultureInfo Cultura = new("es-AR");
+
+    private PagedResult<Producto>? resultado;
+    private string textoBusqueda = string.Empty;
+    private string? busquedaAplicada;
+    private int paginaActual = 1;
+    private bool cargando = true;
+    private string? mensajeError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarAsync();
+    }
+
+    private async Task CargarAsync()
+    {
+        cargando = true;
+        mensajeError = null;
+
+        try
+        {
+            resultado = await ProductoService.ObtenerPaginadoAsync(busquedaAplicada, paginaActual, TamanioPagina);
+        }
+        catch (Exception)
+        {
+            mensajeError = "No se pudieron cargar los productos. Probá de nuevo en unos segundos.";
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private async Task BuscarAsync()
+    {
+        busquedaAplicada = textoBusqueda.Trim();
+        paginaActual = 1;
+        await CargarAsync();
+    }
+
+    private async Task CambiarPaginaAsync(int pagina)
+    {
+        paginaActual = pagina;
+        await CargarAsync();
+    }
+
+    private void CerrarError()
+    {
+        mensajeError = null;
+    }
+}
