@@ -1,0 +1,38 @@
+name: CI/CD - Build y deploy a MonsterASP.NET
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ develop, main ]
+
+jobs:
+  build-y-deploy:
+    runs-on: windows-latest
+
+    steps:
+      - name: Descargar el código
+        uses: actions/checkout@v4
+
+      - name: Instalar .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restaurar dependencias
+        run: dotnet restore Kiosco/Kiosco.csproj
+
+      - name: Compilar
+        run: dotnet build Kiosco/Kiosco.csproj --configuration Release --no-restore
+
+      - name: Publicar
+        run: dotnet publish Kiosco/Kiosco.csproj --configuration Release --no-restore --output ./publish
+
+      - name: Desplegar en MonsterASP.NET (Web Deploy)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: rasmusbuchholdt/simply-web-deploy@2.1.0
+        with:
+          website-name: ${{ secrets.WEBSITE_NAME }}
+          server-computer-name: ${{ secrets.SERVER_COMPUTER_NAME }}
+          server-username: ${{ secrets.SERVER_USERNAME }}
+          server-password: ${{ secrets.SERVER_PASSWORD }}
