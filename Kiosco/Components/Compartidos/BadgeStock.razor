@@ -1,0 +1,21 @@
+﻿<span class="badge @(EsBajo ? "text-bg-danger" : "text-bg-success")">
+    @Stock
+    @if (EsBajo)
+    {
+        <i class="bi bi-exclamation-triangle-fill ms-1" aria-hidden="true"></i>
+    }
+</span>
+@if (EsBajo)
+{
+    <span class="visually-hidden">Stock bajo</span>
+}
+
+@code {
+    /// <summary>Unidades disponibles.</summary>
+    [Parameter] public int Stock { get; set; }
+
+    /// <summary>Stock mínimo del producto. Con ese valor o menos, el stock se considera bajo.</summary>
+    [Parameter] public int Minimo { get; set; }
+
+    private bool EsBajo => Stock <= Minimo;
+}

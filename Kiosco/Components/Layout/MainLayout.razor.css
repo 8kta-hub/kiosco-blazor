@@ -1,0 +1,66 @@
+.pagina {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.encabezado {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 1rem;
+    padding: 0.75rem 1rem;
+    background-color: var(--color-superficie);
+    border-bottom: 1px solid var(--color-borde);
+    box-shadow: var(--sombra);
+}
+
+.marca {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--color-primario);
+    text-decoration: none;
+}
+
+.contenido {
+    flex: 1;
+    width: 100%;
+    max-width: 1140px;
+    margin: 0 auto;
+    padding: 1rem;
+}
+
+.pie {
+    padding: 0.75rem 1rem;
+    border-top: 1px solid var(--color-borde);
+    font-size: 0.875rem;
+    color: var(--color-texto-suave);
+    text-align: center;
+}
+
+    .pie p {
+        margin: 0;
+    }
+
+/* Cartel de error no controlado de Blazor (oculto hasta que ocurre un error) */
+#blazor-error-ui {
+    color-scheme: light only;
+    color: #000;
+    background: lightyellow;
+    bottom: 0;
+    box-shadow: 0 -1px 2px rgba(0, 0, 0, 0.2);
+    box-sizing: border-box;
+    display: none;
+    left: 0;
+    padding: 0.6rem 1.25rem 0.7rem 1.25rem;
+    position: fixed;
+    width: 100%;
+    z-index: 1000;
+}
+
+    #blazor-error-ui .dismiss {
+        cursor: pointer;
+        position: absolute;
+        right: 0.75rem;
+        top: 0.5rem;
+    }

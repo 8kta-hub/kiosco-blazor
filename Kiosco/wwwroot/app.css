@@ -1,0 +1,86 @@
+/* =====================================================================
+   Variables globales (paleta, radio de borde, sombra, tipografía)
+   ===================================================================== */
+:root {
+    --color-primario: #1f4e79;
+    --color-sobre-primario: #ffffff;
+    --color-fondo: #f5f7fa;
+    --color-superficie: #ffffff;
+    --color-texto: #212529;
+    --color-texto-suave: #6c757d;
+    --color-borde: #dee2e6;
+    --color-exito: #198754;
+    --color-peligro: #dc3545;
+    --color-advertencia: #ffc107;
+    --radio-borde: 0.5rem;
+    --sombra: 0 1px 3px rgba(0, 0, 0, 0.12);
+    --fuente-base: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+    /* Tema oscuro: solo se redefinen las variables que cambian */
+    :root[data-tema="oscuro"] {
+        --color-primario: #6ea8fe;
+        --color-sobre-primario: #0b1a2b;
+        --color-fondo: #121417;
+        --color-superficie: #1c2026;
+        --color-texto: #e9ecef;
+        --color-texto-suave: #adb5bd;
+        --color-borde: #343a40;
+        --sombra: 0 1px 3px rgba(0, 0, 0, 0.6);
+    }
+
+/* =====================================================================
+   Estilos base
+   ===================================================================== */
+html,
+body {
+    font-family: var(--fuente-base);
+}
+
+body {
+    background-color: var(--color-fondo);
+    color: var(--color-texto);
+}
+
+a {
+    color: var(--color-primario);
+}
+
+h1:focus {
+    outline: none;
+}
+
+/* Tarjeta reutilizable (se usa en varias pantallas) */
+.tarjeta {
+    background-color: var(--color-superficie);
+    border: 1px solid var(--color-borde);
+    border-radius: var(--radio-borde);
+    box-shadow: var(--sombra);
+    padding: 1rem;
+}
+
+/* =====================================================================
+   Validación de formularios (se usa desde el módulo 3)
+   ===================================================================== */
+.valid.modified:not([type=checkbox]) {
+    outline: 1px solid var(--color-exito);
+}
+
+.invalid {
+    outline: 1px solid var(--color-peligro);
+}
+
+.validation-message {
+    color: var(--color-peligro);
+}
+
+/* Cartel que muestra Blazor cuando un componente lanza una excepción */
+.blazor-error-boundary {
+    background-color: var(--color-peligro);
+    padding: 1rem;
+    color: white;
+}
+
+    .blazor-error-boundary::after {
+        content: "Ocurrió un error en este componente.";
+    }

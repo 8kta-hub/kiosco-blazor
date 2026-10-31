@@ -1,0 +1,27 @@
+﻿@inherits LayoutComponentBase
+
+<div class="pagina">
+    <header class="encabezado">
+        <a class="marca" href="/">
+            <i class="bi bi-shop" aria-hidden="true"></i> Kiosco
+        </a>
+        <NavMenu />
+        <BotonTema />
+    </header>
+
+    <main class="contenido">
+        <article>
+            @Body
+        </article>
+    </main>
+
+    <footer class="pie">
+        <p>Kiosco &copy; @DateTime.Now.Year &middot; Proyecto Integrador</p>
+    </footer>
+</div>
+
+<div id="blazor-error-ui" data-nosnippet>
+    Ocurrió un error inesperado.
+    <a href="." class="reload">Recargar</a>
+    <span class="dismiss">🗙</span>
+</div>
