@@ -1,0 +1,80 @@
+﻿<EditForm Model="modelo" OnValidSubmit="EnviarAsync" class="tarjeta">
+    <DataAnnotationsValidator />
+
+    <div class="row g-3 mb-3">
+        <div class="col-12 col-md-6">
+            <label for="mov-producto" class="form-label">Producto *</label>
+            <InputSelect id="mov-producto" class="form-select" @bind-Value="modelo.ProductoId">
+                <option value="0">Seleccioná un producto</option>
+                @foreach (var producto in Productos)
+                {
+                    <option value="@producto.Id">@producto.Nombre</option>
+                }
+            </InputSelect>
+            <ValidationMessage For="() => modelo.ProductoId" />
+
+            @if (Seleccionado is not null)
+            {
+                <div class="form-text d-flex align-items-center gap-2">
+                    <span>Stock actual:</span>
+                    <BadgeStock Stock="Seleccionado.StockActual" Minimo="Seleccionado.StockMinimo" />
+                    <span>(mínimo @Seleccionado.StockMinimo)</span>
+                </div>
+            }
+        </div>
+
+        <div class="col-12 col-md-6">
+            <label for="mov-operacion" class="form-label">Operación *</label>
+            <InputSelect id="mov-operacion" class="form-select" @bind-Value="modelo.Operacion">
+                <option value="@OperacionStock.Entrada">Entrada (compra de mercadería)</option>
+                <option value="@OperacionStock.Merma">Merma (perdido, vencido o roto)</option>
+                <option value="@OperacionStock.Ajuste">Ajuste (corregir según el conteo)</option>
+            </InputSelect>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-3">
+        <div class="col-12 col-md-4">
+            <label for="mov-cantidad" class="form-label">
+                @(modelo.Operacion == OperacionStock.Ajuste ? "Stock contado *" : "Cantidad *")
+            </label>
+            <InputNumber id="mov-cantidad" class="form-control" @bind-Value="modelo.Cantidad" />
+            @if (modelo.Operacion == OperacionStock.Ajuste)
+            {
+                <div class="form-text">Escribí cuántas unidades hay realmente.</div>
+            }
+            <ValidationMessage For="() => modelo.Cantidad" />
+        </div>
+
+        <div class="col-12 col-md-8">
+            <label for="mov-observacion" class="form-label">Observación (opcional)</label>
+            <InputText id="mov-observacion" class="form-control" @bind-Value="modelo.Observacion" />
+            <ValidationMessage For="() => modelo.Observacion" />
+        </div>
+    </div>
+
+    <button type="submit" class="btn btn-primary" disabled="@Guardando">
+        @if (Guardando)
+        {
+            <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+        }
+        Registrar movimiento
+    </button>
+</EditForm>
+
+@code {
+    /// <summary>Productos que se pueden elegir.</summary>
+    [Parameter] public List<Producto> Productos { get; set; } = new();
+
+    /// <summary>Indica que se está guardando, para deshabilitar el botón.</summary>
+    [Parameter] public bool Guardando { get; set; }
+
+    /// <summary>Se dispara con los datos cargados cuando el formulario es válido.</summary>
+    [Parameter] public EventCallback<SolicitudMovimiento> OnRegistrar { get; set; }
+
+    private readonly SolicitudMovimiento modelo = new();
+
+    private Producto? Seleccionado => Productos.FirstOrDefault(p => p.Id == modelo.ProductoId);
+
+    private Task EnviarAsync() => OnRegistrar.InvokeAsync(modelo);
+}

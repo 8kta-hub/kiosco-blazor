@@ -17,6 +17,13 @@ public interface IProductoService
     Task<PagedResult<Producto>> ObtenerPaginadoAsync(string? busqueda, int pagina, int tamanioPagina);
 
     /// <summary>
+    /// Obtiene todos los productos ordenados por nombre, para llenar selectores.
+    /// </summary>
+    /// <param name="soloActivos">Si es <c>true</c>, devuelve solo los productos activos.</param>
+    /// <returns>Lista de productos, sin categoría cargada.</returns>
+    Task<List<Producto>> ObtenerTodosAsync(bool soloActivos);
+
+    /// <summary>
     /// Busca un producto por su identificador.
     /// </summary>
     /// <param name="id">Identificador del producto.</param>
@@ -24,10 +31,11 @@ public interface IProductoService
     Task<Producto?> ObtenerPorIdAsync(int id);
 
     /// <summary>
-    /// Crea un producto nuevo.
+    /// Crea un producto nuevo. Si tiene stock inicial, lo registra como un movimiento de stock en la misma operación.
     /// </summary>
     /// <param name="producto">Datos del producto (incluye el stock inicial).</param>
     /// <returns>El producto creado, con su identificador asignado.</returns>
+    /// <exception cref="ReglaDeNegocioException">Si el stock inicial es negativo.</exception>
     /// <exception cref="Microsoft.EntityFrameworkCore.DbUpdateException">Si falla el guardado en la base.</exception>
     Task<Producto> CrearAsync(Producto producto);
 
@@ -43,6 +51,7 @@ public interface IProductoService
     /// Elimina un producto. Si no existe, no hace nada.
     /// </summary>
     /// <param name="id">Identificador del producto.</param>
+    /// <exception cref="ReglaDeNegocioException">Si el producto tiene movimientos de stock registrados.</exception>
     /// <exception cref="Microsoft.EntityFrameworkCore.DbUpdateException">Si falla el guardado en la base.</exception>
     Task EliminarAsync(int id);
 }

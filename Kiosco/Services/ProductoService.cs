@@ -56,6 +56,23 @@ public class ProductoService : IProductoService
         };
     }
 
+    public async Task<List<Producto>> ObtenerTodosAsync(bool soloActivos)
+    {
+        await using var contexto = await _fabrica.CreateDbContextAsync();
+
+        IQueryable<Producto> consulta = contexto.Productos.AsNoTracking();
+
+        if (soloActivos)
+        {
+            consulta = consulta.Where(p => p.Activo);
+        }
+
+        return await consulta
+            .OrderBy(p => p.Nombre)
+            .ThenBy(p => p.Id)
+            .ToListAsync();
+    }
+
     public async Task<Producto?> ObtenerPorIdAsync(int id)
     {
         await using var contexto = await _fabrica.CreateDbContextAsync();
@@ -71,9 +88,32 @@ public class ProductoService : IProductoService
         producto.Id = 0;
         producto.Categoria = null;
 
+        int stockInicial = producto.StockActual;
+        if (stockInicial < 0)
+        {
+            throw new ReglaDeNegocioException("El stock inicial no puede ser negativo.");
+        }
+
+        // El stock se carga a través de un movimiento, así el historial siempre coincide con el stock.
+        producto.StockActual = 0;
+
         await using var contexto = await _fabrica.CreateDbContextAsync();
 
         contexto.Productos.Add(producto);
+
+        if (stockInicial > 0)
+        {
+            MovimientoStock movimiento = ReglasStock.Aplicar(
+                producto,
+                TipoMovimientoStock.Entrada,
+                MotivoMovimientoStock.Ajuste,
+                stockInicial,
+                "Stock inicial");
+
+            contexto.MovimientosStock.Add(movimiento);
+        }
+
+        // Un solo SaveChanges: el producto y su movimiento inicial se guardan juntos.
         await contexto.SaveChangesAsync();
 
         return producto;
@@ -108,6 +148,13 @@ public class ProductoService : IProductoService
         if (producto is null)
         {
             return;
+        }
+
+        bool tieneMovimientos = await contexto.MovimientosStock.AnyAsync(m => m.ProductoId == id);
+        if (tieneMovimientos)
+        {
+            throw new ReglaDeNegocioException(
+                "No se puede eliminar un producto con movimientos de stock. Para dejar de usarlo, desmarcá «Producto activo» al editarlo.");
         }
 
         contexto.Productos.Remove(producto);

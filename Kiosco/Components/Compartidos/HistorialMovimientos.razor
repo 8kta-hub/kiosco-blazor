@@ -1,0 +1,41 @@
+﻿@if (Items.Count == 0)
+{
+    <p class="text-secondary">No hay movimientos para mostrar.</p>
+}
+else
+{
+    <div class="table-responsive tarjeta p-0">
+        <table class="table table-hover align-middle mb-0">
+            <thead>
+                <tr>
+                    <th scope="col">Fecha</th>
+                    <th scope="col">Producto</th>
+                    <th scope="col">Tipo</th>
+                    <th scope="col">Motivo</th>
+                    <th scope="col" class="text-end">Cantidad</th>
+                    <th scope="col">Observación</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var movimiento in Items)
+                {
+                    <tr>
+                        <td class="text-nowrap">@ZonaHoraria.AHoraLocal(movimiento.Fecha).ToString("dd/MM/yyyy HH:mm")</td>
+                        <td>@movimiento.Producto?.Nombre</td>
+                        <td>@movimiento.Tipo</td>
+                        <td>@movimiento.Motivo</td>
+                        <td class="text-end fw-semibold @(movimiento.Cantidad > 0 ? "text-success" : "text-danger")">
+                            @(movimiento.Cantidad > 0 ? "+" : "")@movimiento.Cantidad
+                        </td>
+                        <td>@movimiento.Observacion</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    /// <summary>Movimientos a mostrar, con su producto cargado.</summary>
+    [Parameter] public List<MovimientoStock> Items { get; set; } = new();
+}

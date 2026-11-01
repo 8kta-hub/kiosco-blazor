@@ -17,6 +17,8 @@ public class KioscoDbContext : DbContext
 
     public DbSet<Producto> Productos => Set<Producto>();
 
+    public DbSet<MovimientoStock> MovimientosStock => Set<MovimientoStock>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -36,6 +38,20 @@ public class KioscoDbContext : DbContext
             entidad.HasOne(p => p.Categoria)
                    .WithMany(c => c.Productos)
                    .HasForeignKey(p => p.CategoriaId)
+                   .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<MovimientoStock>(entidad =>
+        {
+            entidad.Property(m => m.Tipo).HasConversion<string>().HasMaxLength(20);
+            entidad.Property(m => m.Motivo).HasConversion<string>().HasMaxLength(20);
+            entidad.Property(m => m.Observacion).HasMaxLength(200);
+
+            entidad.HasIndex(m => new { m.ProductoId, m.Fecha });
+
+            entidad.HasOne(m => m.Producto)
+                   .WithMany()
+                   .HasForeignKey(m => m.ProductoId)
                    .OnDelete(DeleteBehavior.Restrict);
         });
 
@@ -62,5 +78,34 @@ public class KioscoDbContext : DbContext
             new Producto { Id = 8, Nombre = "Maní salado 100 g", CategoriaId = 3, PrecioCosto = 800m, PrecioVenta = 1200m, StockActual = 10, StockMinimo = 5 },
             new Producto { Id = 9, Nombre = "Galletitas de agua", CategoriaId = 4, PrecioCosto = 900m, PrecioVenta = 1400m, StockActual = 20, StockMinimo = 8 },
             new Producto { Id = 10, Nombre = "Pilas AA x2", CategoriaId = 5, PrecioCosto = 1500m, PrecioVenta = 2300m, StockActual = 8, StockMinimo = 3 });
+
+        // Un movimiento inicial por producto, para que el historial coincida con el stock sembrado.
+        DateTime fechaInicial = new(2026, 10, 1, 12, 0, 0, DateTimeKind.Utc);
+
+        modelBuilder.Entity<MovimientoStock>().HasData(
+            MovimientoInicial(1, 1, 24, fechaInicial),
+            MovimientoInicial(2, 2, 4, fechaInicial),
+            MovimientoInicial(3, 3, 18, fechaInicial),
+            MovimientoInicial(4, 4, 2, fechaInicial),
+            MovimientoInicial(5, 5, 1, fechaInicial),
+            MovimientoInicial(6, 6, 40, fechaInicial),
+            MovimientoInicial(7, 7, 15, fechaInicial),
+            MovimientoInicial(8, 8, 10, fechaInicial),
+            MovimientoInicial(9, 9, 20, fechaInicial),
+            MovimientoInicial(10, 10, 8, fechaInicial));
+    }
+
+    private static MovimientoStock MovimientoInicial(int id, int productoId, int cantidad, DateTime fecha)
+    {
+        return new MovimientoStock
+        {
+            Id = id,
+            ProductoId = productoId,
+            Tipo = TipoMovimientoStock.Entrada,
+            Motivo = MotivoMovimientoStock.Ajuste,
+            Cantidad = cantidad,
+            Fecha = fecha,
+            Observacion = "Stock inicial"
+        };
     }
 }
