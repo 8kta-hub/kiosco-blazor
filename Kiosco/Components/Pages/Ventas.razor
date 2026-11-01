@@ -1,0 +1,108 @@
+﻿@page "/ventas"
+@inject IVentaService VentaService
+
+<PageTitle>Ventas</PageTitle>
+
+<section aria-labelledby="titulo-ventas">
+    <h1 id="titulo-ventas" class="h3 mb-3">Ventas</h1>
+
+    <AlertError Mensaje="@mensajeError" OnCerrar="CerrarError" />
+
+    @if (cargando)
+    {
+        <div class="d-flex align-items-center gap-2" role="status">
+            <div class="spinner-border spinner-border-sm" aria-hidden="true"></div>
+            <span>Cargando ventas…</span>
+        </div>
+    }
+    else if (resultado is not null)
+    {
+        @if (resultado.Items.Count == 0)
+        {
+            <p class="text-secondary">Todavía no hay ventas registradas.</p>
+        }
+        else
+        {
+            <p class="text-secondary small mb-2">@resultado.TotalItems ventas</p>
+
+            <div class="table-responsive tarjeta p-0 mb-3">
+                <table class="table table-hover align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th scope="col">N°</th>
+                            <th scope="col">Fecha</th>
+                            <th scope="col">Detalle</th>
+                            <th scope="col" class="text-end">Total</th>
+                            <th scope="col" class="text-end">Recibido</th>
+                            <th scope="col" class="text-end">Vuelto</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var venta in resultado.Items)
+                        {
+                            <tr>
+                                <td>@venta.Id</td>
+                                <td class="text-nowrap">@Formato.FechaHora(venta.Fecha)</td>
+                                <td>@Detalle(venta)</td>
+                                <td class="text-end fw-semibold text-nowrap">@Formato.Dinero(venta.Total)</td>
+                                <td class="text-end text-nowrap">@Formato.Dinero(venta.MontoRecibido)</td>
+                                <td class="text-end text-nowrap">@Formato.Dinero(venta.Vuelto)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <Paginacion PaginaActual="paginaActual" TotalPaginas="resultado.TotalPaginas" OnCambio="CambiarPaginaAsync" />
+        }
+    }
+</section>
+
+@code {
+    private const int TamanioPagina = 10;
+
+    private PagedResult<Venta>? resultado;
+    private int paginaActual = 1;
+    private bool cargando = true;
+    private string? mensajeError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarAsync();
+    }
+
+    private async Task CargarAsync()
+    {
+        cargando = true;
+        mensajeError = null;
+
+        try
+        {
+            resultado = await VentaService.ObtenerPaginadoAsync(paginaActual, TamanioPagina);
+        }
+        catch (Exception)
+        {
+            mensajeError = "No se pudieron cargar las ventas. Probá de nuevo en unos segundos.";
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private async Task CambiarPaginaAsync(int pagina)
+    {
+        paginaActual = pagina;
+        await CargarAsync();
+    }
+
+    private static string Detalle(Venta venta)
+    {
+        return string.Join(", ", venta.Items.Select(i => $"{i.Cantidad} × {i.Producto?.Nombre}"));
+    }
+
+    private void CerrarError()
+    {
+        mensajeError = null;
+    }
+}

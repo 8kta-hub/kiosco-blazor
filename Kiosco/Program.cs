@@ -20,7 +20,13 @@ builder.Services.AddDbContextFactory<KioscoDbContext>(opciones =>
 
 // Servicios de datos
 builder.Services.AddScoped<IProductoService, ProductoService>();
-builder.Services.AddScoped<ICategoriaService, CategoriaService>(); // NUEVO (M3.2)
+builder.Services.AddScoped<ICategoriaService, CategoriaService>();
+builder.Services.AddScoped<IStockService, StockService>();
+builder.Services.AddScoped<ICajaService, CajaService>();
+builder.Services.AddScoped<IVentaService, VentaService>();
+
+// State Service: carrito de la venta en curso (una instancia por usuario conectado)
+builder.Services.AddScoped<CarritoState>(); // NUEVO (M6.2)
 
 var app = builder.Build();
 

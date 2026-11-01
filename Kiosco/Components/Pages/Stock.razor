@@ -1,0 +1,237 @@
+﻿@page "/stock"
+@inject IProductoService ProductoService
+@inject IStockService StockService
+
+<PageTitle>Stock</PageTitle>
+
+<section aria-labelledby="titulo-stock">
+    <h1 id="titulo-stock" class="h3 mb-3">Stock</h1>
+
+    <AlertError Mensaje="@mensajeError" OnCerrar="CerrarError" />
+
+    @if (!string.IsNullOrEmpty(mensajeExito))
+    {
+        <div class="alert alert-success d-flex justify-content-between align-items-start gap-2" role="status">
+            <span>
+                <i class="bi bi-check-circle" aria-hidden="true"></i>
+                @mensajeExito
+            </span>
+            <button type="button" class="btn-close" aria-label="Cerrar aviso" @onclick="CerrarExito"></button>
+        </div>
+    }
+
+    <section aria-labelledby="titulo-registrar" class="mb-4">
+        <h2 id="titulo-registrar" class="h5">Registrar movimiento</h2>
+        <FormularioMovimiento @key="versionFormulario"
+                              Productos="productosActivos"
+                              Guardando="guardando"
+                              OnRegistrar="RegistrarAsync" />
+    </section>
+
+    <section aria-labelledby="titulo-historial">
+        <h2 id="titulo-historial" class="h5">Historial de movimientos</h2>
+
+        <form class="row g-2 align-items-end mb-3" @onsubmit="AplicarFiltrosAsync" @onsubmit:preventDefault>
+            <div class="col-12 col-md-4">
+                <label for="filtro-producto" class="form-label">Producto</label>
+                <select id="filtro-producto" class="form-select" @bind="filtroProductoId">
+                    <option value="0">Todos</option>
+                    @foreach (var producto in todosLosProductos)
+                    {
+                        <option value="@producto.Id">@producto.Nombre@(producto.Activo ? "" : " (inactivo)")</option>
+                    }
+                </select>
+            </div>
+
+            <div class="col-12 col-sm-6 col-md-2">
+                <label for="filtro-tipo" class="form-label">Tipo</label>
+                <select id="filtro-tipo" class="form-select" @bind="filtroTipo">
+                    <option value="">Todos</option>
+                    <option value="@TipoMovimientoStock.Entrada">Entrada</option>
+                    <option value="@TipoMovimientoStock.Salida">Salida</option>
+                    <option value="@TipoMovimientoStock.Ajuste">Ajuste</option>
+                </select>
+            </div>
+
+            <div class="col-6 col-md-2">
+                <label for="filtro-desde" class="form-label">Desde</label>
+                <input id="filtro-desde" type="date" class="form-control" @bind="filtroDesde" />
+            </div>
+
+            <div class="col-6 col-md-2">
+                <label for="filtro-hasta" class="form-label">Hasta</label>
+                <input id="filtro-hasta" type="date" class="form-control" @bind="filtroHasta" />
+            </div>
+
+            <div class="col-12 col-md-2 d-flex gap-2">
+                <button type="submit" class="btn btn-primary flex-grow-1">Filtrar</button>
+                <button type="button" class="btn btn-outline-secondary" @onclick="LimpiarFiltrosAsync">Limpiar</button>
+            </div>
+        </form>
+
+        @if (cargando)
+        {
+            <div class="d-flex align-items-center gap-2" role="status">
+                <div class="spinner-border spinner-border-sm" aria-hidden="true"></div>
+                <span>Cargando historial…</span>
+            </div>
+        }
+        else if (historial is not null)
+        {
+            <p class="text-secondary small mb-2">@historial.TotalItems movimientos</p>
+
+            <div class="mb-3">
+                <HistorialMovimientos Items="historial.Items" />
+            </div>
+
+            <Paginacion PaginaActual="paginaActual" TotalPaginas="historial.TotalPaginas" OnCambio="CambiarPaginaAsync" />
+        }
+    </section>
+</section>
+
+@code {
+    private const int TamanioPagina = 10;
+
+    private List<Producto> productosActivos = new();
+    private List<Producto> todosLosProductos = new();
+    private PagedResult<MovimientoStock>? historial;
+
+    private int filtroProductoId;
+    private string filtroTipo = string.Empty;
+    private DateTime? filtroDesde;
+    private DateTime? filtroHasta;
+
+    private int paginaActual = 1;
+    private int versionFormulario;
+    private bool cargando = true;
+    private bool guardando;
+    private string? mensajeError;
+    private string? mensajeExito;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarProductosAsync();
+        await CargarHistorialAsync();
+    }
+
+    private async Task CargarProductosAsync()
+    {
+        try
+        {
+            productosActivos = await ProductoService.ObtenerTodosAsync(soloActivos: true);
+            todosLosProductos = await ProductoService.ObtenerTodosAsync(soloActivos: false);
+        }
+        catch (Exception)
+        {
+            mensajeError = "No se pudieron cargar los productos. Probá de nuevo en unos segundos.";
+        }
+    }
+
+    private async Task CargarHistorialAsync()
+    {
+        cargando = true;
+
+        try
+        {
+            TipoMovimientoStock? tipo = Enum.TryParse(filtroTipo, out TipoMovimientoStock tipoElegido)
+                ? tipoElegido
+                : null;
+
+            int? productoId = filtroProductoId > 0 ? filtroProductoId : null;
+
+            // El día elegido es de Argentina: se convierte a UTC. "Hasta" excluye el día siguiente.
+            DateTime? desdeUtc = filtroDesde.HasValue
+                ? ZonaHoraria.AUtc(filtroDesde.Value.Date)
+                : null;
+
+            DateTime? hastaUtc = filtroHasta.HasValue
+                ? ZonaHoraria.AUtc(filtroHasta.Value.Date.AddDays(1))
+                : null;
+
+            historial = await StockService.ObtenerHistorialAsync(
+                productoId, tipo, desdeUtc, hastaUtc, paginaActual, TamanioPagina);
+        }
+        catch (Exception)
+        {
+            mensajeError = "No se pudo cargar el historial. Probá de nuevo en unos segundos.";
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private async Task RegistrarAsync(SolicitudMovimiento solicitud)
+    {
+        guardando = true;
+        mensajeError = null;
+        mensajeExito = null;
+
+        try
+        {
+            switch (solicitud.Operacion)
+            {
+                case OperacionStock.Entrada:
+                    await StockService.RegistrarEntradaAsync(solicitud.ProductoId, solicitud.Cantidad, solicitud.Observacion);
+                    break;
+                case OperacionStock.Merma:
+                    await StockService.RegistrarMermaAsync(solicitud.ProductoId, solicitud.Cantidad, solicitud.Observacion);
+                    break;
+                case OperacionStock.Ajuste:
+                    await StockService.RegistrarAjusteAsync(solicitud.ProductoId, solicitud.Cantidad, solicitud.Observacion);
+                    break;
+            }
+
+            mensajeExito = "Movimiento registrado correctamente.";
+            versionFormulario++;
+
+            await CargarProductosAsync();
+            paginaActual = 1;
+            await CargarHistorialAsync();
+        }
+        catch (ReglaDeNegocioException ex)
+        {
+            mensajeError = ex.Message;
+        }
+        catch (Exception)
+        {
+            mensajeError = "No se pudo registrar el movimiento. Probá de nuevo en unos segundos.";
+        }
+        finally
+        {
+            guardando = false;
+        }
+    }
+
+    private async Task AplicarFiltrosAsync()
+    {
+        paginaActual = 1;
+        await CargarHistorialAsync();
+    }
+
+    private async Task LimpiarFiltrosAsync()
+    {
+        filtroProductoId = 0;
+        filtroTipo = string.Empty;
+        filtroDesde = null;
+        filtroHasta = null;
+        paginaActual = 1;
+        await CargarHistorialAsync();
+    }
+
+    private async Task CambiarPaginaAsync(int pagina)
+    {
+        paginaActual = pagina;
+        await CargarHistorialAsync();
+    }
+
+    private void CerrarError()
+    {
+        mensajeError = null;
+    }
+
+    private void CerrarExito()
+    {
+        mensajeExito = null;
+    }
+}

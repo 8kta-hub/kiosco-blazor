@@ -180,6 +180,10 @@
                 await CargarAsync();
             }
         }
+        catch (ReglaDeNegocioException ex)
+        {
+            mensajeError = ex.Message;
+        }
         catch (Exception)
         {
             mensajeError = "No se pudo eliminar el producto.";

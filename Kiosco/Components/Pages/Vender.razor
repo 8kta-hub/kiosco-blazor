@@ -1,0 +1,322 @@
+﻿@page "/vender"
+@implements IDisposable
+@inject IProductoService ProductoService
+@inject ICajaService CajaService
+@inject IVentaService VentaService
+@inject CarritoState Carrito
+
+<PageTitle>Vender</PageTitle>
+
+<section aria-labelledby="titulo-vender">
+    <h1 id="titulo-vender" class="h3 mb-3">Vender</h1>
+
+    <AlertError Mensaje="@mensajeError" OnCerrar="CerrarError" />
+
+    @if (cargando)
+    {
+        <div class="d-flex align-items-center gap-2" role="status">
+            <div class="spinner-border spinner-border-sm" aria-hidden="true"></div>
+            <span>Cargando…</span>
+        </div>
+    }
+    else if (ultimaVenta is not null)
+    {
+        <section aria-labelledby="titulo-comprobante" class="tarjeta">
+            <h2 id="titulo-comprobante" class="h5">Venta #@ultimaVenta.Id registrada</h2>
+
+            <ul class="list-unstyled mb-3">
+                @foreach (var item in ultimaVenta.Items)
+                {
+                    <li class="d-flex justify-content-between gap-2">
+                        <span>@item.Cantidad × @item.Producto?.Nombre</span>
+                        <span class="text-nowrap">@Formato.Dinero(item.Subtotal)</span>
+                    </li>
+                }
+            </ul>
+
+            <dl class="row mb-2">
+                <dt class="col-6 fw-normal text-secondary">Total</dt>
+                <dd class="col-6 text-end">@Formato.Dinero(ultimaVenta.Total)</dd>
+                <dt class="col-6 fw-normal text-secondary">Recibido</dt>
+                <dd class="col-6 text-end">@Formato.Dinero(ultimaVenta.MontoRecibido)</dd>
+            </dl>
+
+            <p role="status" class="fs-5 fw-semibold mb-3">
+                <i class="bi bi-cash" aria-hidden="true"></i>
+                Entregá de vuelto: @Formato.Dinero(ultimaVenta.Vuelto)
+            </p>
+
+            <button type="button" class="btn btn-primary" @onclick="NuevaVenta">Nueva venta</button>
+        </section>
+    }
+    else
+    {
+        @if (!cajaAbierta)
+        {
+            <div class="alert alert-warning" role="alert">
+                <i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
+                No hay una caja abierta, así que no se puede vender.
+                <a href="caja" class="alert-link">Abrir la caja</a>
+            </div>
+        }
+
+        List<Producto> coincidentes = Coincidentes();
+
+        <div class="row g-4">
+            <div class="col-12 col-lg-7">
+                <section aria-labelledby="titulo-productos-venta">
+                    <h2 id="titulo-productos-venta" class="h5">Productos</h2>
+
+                    <label for="buscar-venta" class="visually-hidden">Buscar producto</label>
+                    <input id="buscar-venta" type="search" class="form-control mb-3" placeholder="Buscar producto"
+                           @bind="textoBusqueda" @bind:event="oninput" />
+
+                    @if (coincidentes.Count == 0)
+                    {
+                        <p class="text-secondary">No hay productos para mostrar.</p>
+                    }
+                    else
+                    {
+                        <ul class="list-group">
+                            @foreach (var producto in coincidentes.Take(MaximoResultados))
+                            {
+                                bool sinStock = producto.StockActual - CantidadEnCarrito(producto.Id) < 1;
+
+                                <li class="list-group-item d-flex justify-content-between align-items-center gap-2">
+                                    <div>
+                                        <div class="fw-semibold">@producto.Nombre</div>
+                                        <div class="small text-secondary">
+                                            @Formato.Dinero(producto.PrecioVenta) · Stock:
+                                            <BadgeStock Stock="producto.StockActual" Minimo="producto.StockMinimo" />
+                                        </div>
+                                    </div>
+                                    <button type="button" class="btn btn-sm btn-primary"
+                                            disabled="@(sinStock || !cajaAbierta)"
+                                            aria-label="Agregar @producto.Nombre"
+                                            @onclick="() => AgregarAlCarrito(producto)">
+                                        <i class="bi bi-plus-lg" aria-hidden="true"></i> Agregar
+                                    </button>
+                                </li>
+                            }
+                        </ul>
+
+                        @if (coincidentes.Count > MaximoResultados)
+                        {
+                            <p class="small text-secondary mt-2">Hay más productos: escribí para acotar la búsqueda.</p>
+                        }
+                    }
+                </section>
+            </div>
+
+            <div class="col-12 col-lg-5">
+                <section aria-labelledby="titulo-carrito" class="tarjeta">
+                    <h2 id="titulo-carrito" class="h5">Carrito</h2>
+
+                    @if (Carrito.EstaVacio)
+                    {
+                        <p class="text-secondary mb-0">El carrito está vacío. Agregá productos de la lista.</p>
+                    }
+                    else
+                    {
+                        <ul class="list-unstyled mb-3">
+                            @foreach (var linea in Carrito.Lineas)
+                            {
+                                <li class="d-flex align-items-center gap-2 py-2 border-bottom">
+                                    <div class="flex-grow-1">
+                                        <div>@linea.Nombre</div>
+                                        <div class="small text-secondary">@Formato.Dinero(linea.PrecioUnitario) c/u</div>
+                                    </div>
+
+                                    <div class="d-flex align-items-center gap-1">
+                                        <button type="button" class="btn btn-sm btn-outline-secondary"
+                                                aria-label="Quitar una unidad de @linea.Nombre"
+                                                @onclick="() => CambiarCantidad(linea.ProductoId, linea.Cantidad - 1)">
+                                            <i class="bi bi-dash" aria-hidden="true"></i>
+                                        </button>
+                                        <span class="px-1" aria-live="polite">@linea.Cantidad</span>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary"
+                                                disabled="@(linea.Cantidad >= linea.StockDisponible)"
+                                                aria-label="Sumar una unidad de @linea.Nombre"
+                                                @onclick="() => CambiarCantidad(linea.ProductoId, linea.Cantidad + 1)">
+                                            <i class="bi bi-plus" aria-hidden="true"></i>
+                                        </button>
+                                    </div>
+
+                                    <div class="text-end fw-semibold text-nowrap">@Formato.Dinero(linea.Subtotal)</div>
+
+                                    <button type="button" class="btn btn-sm btn-outline-danger"
+                                            aria-label="Eliminar @linea.Nombre del carrito"
+                                            @onclick="() => Carrito.Quitar(linea.ProductoId)">
+                                        <i class="bi bi-trash" aria-hidden="true"></i>
+                                    </button>
+                                </li>
+                            }
+                        </ul>
+
+                        <div class="d-flex justify-content-between fs-5 fw-semibold mb-3">
+                            <span>Total</span>
+                            <span>@Formato.Dinero(Carrito.Total)</span>
+                        </div>
+
+                        <EditForm Model="pago" OnValidSubmit="ConfirmarVentaAsync">
+                            <DataAnnotationsValidator />
+
+                            <div class="mb-3">
+                                <label for="monto-recibido" class="form-label">Monto recibido *</label>
+                                <InputNumber id="monto-recibido" class="form-control"
+                                             @bind-Value="pago.Monto" @bind-Value:event="oninput" />
+                                <ValidationMessage For="() => pago.Monto" />
+                                <div class="form-text" aria-live="polite">@TextoVuelto</div>
+                            </div>
+
+                            <button type="submit" class="btn btn-success w-100" disabled="@(!PuedeConfirmar || guardando)">
+                                @if (guardando)
+                                {
+                                    <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                                }
+                                Confirmar venta
+                            </button>
+                        </EditForm>
+
+                        <button type="button" class="btn btn-link text-danger px-0 mt-2" @onclick="Carrito.Vaciar">
+                            Vaciar carrito
+                        </button>
+                    }
+                </section>
+            </div>
+        </div>
+    }
+</section>
+
+@code {
+    private const int MaximoResultados = 12;
+
+    private List<Producto> productos = new();
+    private Venta? ultimaVenta;
+    private SolicitudMonto pago = new();
+
+    private string textoBusqueda = string.Empty;
+    private bool cargando = true;
+    private bool cajaAbierta;
+    private bool guardando;
+    private string? mensajeError;
+
+    private bool PuedeConfirmar =>
+        cajaAbierta && !Carrito.EstaVacio && pago.Monto >= Carrito.Total && pago.Monto > 0;
+
+    private string TextoVuelto
+    {
+        get
+        {
+            if (pago.Monto <= 0)
+            {
+                return "Escribí cuánto te entregó el cliente.";
+            }
+
+            return pago.Monto < Carrito.Total
+                ? $"Faltan {Formato.Dinero(Carrito.Total - pago.Monto)}."
+                : $"Vuelto: {Formato.Dinero(pago.Monto - Carrito.Total)}";
+        }
+    }
+
+    protected override void OnInitialized()
+    {
+        Carrito.OnChange += AlCambiarElCarrito;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarAsync();
+        cargando = false;
+    }
+
+    private async Task CargarAsync()
+    {
+        try
+        {
+            productos = await ProductoService.ObtenerTodosAsync(soloActivos: true);
+            cajaAbierta = await CajaService.ObtenerResumenAbiertaAsync() is not null;
+        }
+        catch (Exception)
+        {
+            mensajeError = "No se pudieron cargar los datos. Probá de nuevo en unos segundos.";
+        }
+    }
+
+    private List<Producto> Coincidentes()
+    {
+        string texto = textoBusqueda.Trim();
+
+        return productos
+            .Where(p => texto.Length == 0 || p.Nombre.Contains(texto, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+    }
+
+    private int CantidadEnCarrito(int productoId)
+    {
+        return Carrito.Lineas.FirstOrDefault(l => l.ProductoId == productoId)?.Cantidad ?? 0;
+    }
+
+    private void AgregarAlCarrito(Producto producto)
+    {
+        mensajeError = Carrito.Agregar(producto)
+            ? null
+            : $"No hay más stock disponible de «{producto.Nombre}».";
+    }
+
+    private void CambiarCantidad(int productoId, int cantidad)
+    {
+        mensajeError = Carrito.CambiarCantidad(productoId, cantidad)
+            ? null
+            : "No hay más stock disponible de ese producto.";
+    }
+
+    private async Task ConfirmarVentaAsync()
+    {
+        guardando = true;
+        mensajeError = null;
+
+        try
+        {
+            ultimaVenta = await VentaService.ConfirmarVentaAsync(Carrito.ComoItemsSolicitados(), pago.Monto);
+
+            Carrito.Vaciar();
+            pago = new SolicitudMonto();
+            textoBusqueda = string.Empty;
+
+            await CargarAsync();
+        }
+        catch (ReglaDeNegocioException ex)
+        {
+            mensajeError = ex.Message;
+        }
+        catch (Exception)
+        {
+            mensajeError = "No se pudo registrar la venta. Probá de nuevo en unos segundos.";
+        }
+        finally
+        {
+            guardando = false;
+        }
+    }
+
+    private void NuevaVenta()
+    {
+        ultimaVenta = null;
+    }
+
+    private void AlCambiarElCarrito()
+    {
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private void CerrarError()
+    {
+        mensajeError = null;
+    }
+
+    public void Dispose()
+    {
+        Carrito.OnChange -= AlCambiarElCarrito;
+    }
+}
