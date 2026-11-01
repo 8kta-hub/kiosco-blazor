@@ -21,7 +21,8 @@ builder.Services.AddDbContextFactory<KioscoDbContext>(opciones =>
 // Servicios de datos
 builder.Services.AddScoped<IProductoService, ProductoService>();
 builder.Services.AddScoped<ICategoriaService, CategoriaService>();
-builder.Services.AddScoped<IStockService, StockService>(); // NUEVO (M4.1)
+builder.Services.AddScoped<IStockService, StockService>();
+builder.Services.AddScoped<ICajaService, CajaService>(); // NUEVO (M5.1)
 
 var app = builder.Build();
 
