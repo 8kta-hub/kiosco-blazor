@@ -1,0 +1,52 @@
+﻿<EditForm Model="modelo" OnValidSubmit="EnviarAsync" class="tarjeta">
+    <DataAnnotationsValidator />
+
+    <div class="row g-3 mb-3">
+        <div class="col-12 col-md-4">
+            <label for="caja-tipo" class="form-label">Tipo *</label>
+            <InputSelect id="caja-tipo" class="form-select" @bind-Value="modelo.Tipo">
+                <option value="@TipoMovimientoCaja.Ingreso">Ingreso (entra efectivo)</option>
+                <option value="@TipoMovimientoCaja.Egreso">Egreso (sale efectivo)</option>
+            </InputSelect>
+        </div>
+
+        <div class="col-12 col-md-5">
+            <label for="caja-concepto" class="form-label">Concepto *</label>
+            <InputText id="caja-concepto" class="form-control" @bind-Value="modelo.Concepto" />
+            <ValidationMessage For="() => modelo.Concepto" />
+        </div>
+
+        <div class="col-12 col-md-3">
+            <label for="caja-monto" class="form-label">Monto *</label>
+            <InputNumber id="caja-monto" class="form-control" @bind-Value="modelo.Monto" />
+            @if (modelo.Tipo == TipoMovimientoCaja.Egreso)
+            {
+                <div class="form-text">Saldo disponible: @Formato.Dinero(SaldoActual)</div>
+            }
+            <ValidationMessage For="() => modelo.Monto" />
+        </div>
+    </div>
+
+    <button type="submit" class="btn btn-primary" disabled="@Guardando">
+        @if (Guardando)
+        {
+            <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+        }
+        Registrar movimiento
+    </button>
+</EditForm>
+
+@code {
+    /// <summary>Saldo actual de la caja, para mostrar cuánto se puede sacar.</summary>
+    [Parameter] public decimal SaldoActual { get; set; }
+
+    /// <summary>Indica que se está guardando, para deshabilitar el botón.</summary>
+    [Parameter] public bool Guardando { get; set; }
+
+    /// <summary>Se dispara con los datos cargados cuando el formulario es válido.</summary>
+    [Parameter] public EventCallback<SolicitudMovimientoCaja> OnRegistrar { get; set; }
+
+    private readonly SolicitudMovimientoCaja modelo = new();
+
+    private Task EnviarAsync() => OnRegistrar.InvokeAsync(modelo);
+}
