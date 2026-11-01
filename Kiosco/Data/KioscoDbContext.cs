@@ -19,6 +19,10 @@ public class KioscoDbContext : DbContext
 
     public DbSet<MovimientoStock> MovimientosStock => Set<MovimientoStock>();
 
+    public DbSet<SesionCaja> SesionesCaja => Set<SesionCaja>();
+
+    public DbSet<MovimientoCaja> MovimientosCaja => Set<MovimientoCaja>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -52,6 +56,32 @@ public class KioscoDbContext : DbContext
             entidad.HasOne(m => m.Producto)
                    .WithMany()
                    .HasForeignKey(m => m.ProductoId)
+                   .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<SesionCaja>(entidad =>
+        {
+            entidad.Property(s => s.MontoInicial).HasPrecision(18, 2);
+            entidad.Property(s => s.EfectivoContado).HasPrecision(18, 2);
+            entidad.Property(s => s.Diferencia).HasPrecision(18, 2);
+
+            // Solo puede haber una fila con FechaCierre nula: una única caja abierta a la vez.
+            entidad.HasIndex(s => s.FechaCierre)
+                   .IsUnique()
+                   .HasFilter("[FechaCierre] IS NULL");
+        });
+
+        modelBuilder.Entity<MovimientoCaja>(entidad =>
+        {
+            entidad.Property(m => m.Tipo).HasConversion<string>().HasMaxLength(20);
+            entidad.Property(m => m.Concepto).HasMaxLength(100);
+            entidad.Property(m => m.Monto).HasPrecision(18, 2);
+
+            entidad.HasIndex(m => new { m.SesionCajaId, m.Fecha });
+
+            entidad.HasOne(m => m.SesionCaja)
+                   .WithMany(s => s.Movimientos)
+                   .HasForeignKey(m => m.SesionCajaId)
                    .OnDelete(DeleteBehavior.Restrict);
         });
 

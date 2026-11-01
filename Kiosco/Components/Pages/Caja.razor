@@ -1,0 +1,406 @@
+﻿@page "/caja"
+@inject ICajaService CajaService
+
+<PageTitle>Caja</PageTitle>
+
+<section aria-labelledby="titulo-caja">
+    <h1 id="titulo-caja" class="h3 mb-3">Caja</h1>
+
+    <AlertError Mensaje="@mensajeError" OnCerrar="CerrarError" />
+
+    @if (!string.IsNullOrEmpty(mensajeExito))
+    {
+        <div class="alert alert-success d-flex justify-content-between align-items-start gap-2" role="status">
+            <span>
+                <i class="bi bi-check-circle" aria-hidden="true"></i>
+                @mensajeExito
+            </span>
+            <button type="button" class="btn-close" aria-label="Cerrar aviso" @onclick="CerrarExito"></button>
+        </div>
+    }
+
+    @if (cargando)
+    {
+        <div class="d-flex align-items-center gap-2" role="status">
+            <div class="spinner-border spinner-border-sm" aria-hidden="true"></div>
+            <span>Cargando caja…</span>
+        </div>
+    }
+    else
+    {
+        @if (ultimoCierre is not null)
+        {
+            <section aria-labelledby="titulo-arqueo" class="tarjeta mb-4">
+                <h2 id="titulo-arqueo" class="h5">Arqueo de la caja que acabás de cerrar</h2>
+                <dl class="row mb-2">
+                    <dt class="col-7 col-sm-4 fw-normal text-secondary">Saldo esperado</dt>
+                    <dd class="col-5 col-sm-8 text-end text-sm-start">@Formato.Dinero(ultimoCierre.SaldoEsperado)</dd>
+                    <dt class="col-7 col-sm-4 fw-normal text-secondary">Efectivo contado</dt>
+                    <dd class="col-5 col-sm-8 text-end text-sm-start">@Formato.Dinero(ultimoCierre.Sesion.EfectivoContado ?? 0m)</dd>
+                </dl>
+                <p role="status" class="fw-semibold mb-0 @ClaseDiferenciaCierre">
+                    <i class="bi @IconoDiferenciaCierre" aria-hidden="true"></i>
+                    @TextoDiferenciaCierre
+                </p>
+            </section>
+        }
+
+        @if (resumen is null)
+        {
+            <section aria-labelledby="titulo-apertura" class="mb-4">
+                <h2 id="titulo-apertura" class="h5">Abrir caja</h2>
+                <p class="text-secondary">No hay una caja abierta. Abrila con el efectivo que tenés para dar vuelto.</p>
+
+                <EditForm Model="apertura" OnValidSubmit="AbrirCajaAsync" class="tarjeta">
+                    <DataAnnotationsValidator />
+                    <div class="mb-3">
+                        <label for="apertura-monto" class="form-label">Monto inicial *</label>
+                        <InputNumber id="apertura-monto" class="form-control" @bind-Value="apertura.Monto" />
+                        <ValidationMessage For="() => apertura.Monto" />
+                    </div>
+                    <button type="submit" class="btn btn-primary" disabled="@guardando">Abrir caja</button>
+                </EditForm>
+            </section>
+        }
+        else
+        {
+            <p class="text-secondary">
+                Caja abierta desde <strong>@Formato.FechaHora(resumen.Sesion.FechaApertura)</strong>
+            </p>
+
+            <div class="row g-3 mb-4">
+                <div class="col-6 col-lg-3">
+                    <TarjetaEstadistica Titulo="Saldo esperado" Icono="bi-cash-stack"
+                                        Valor="@Formato.Dinero(resumen.SaldoEsperado)" />
+                </div>
+                <div class="col-6 col-lg-3">
+                    <TarjetaEstadistica Titulo="Monto inicial" Icono="bi-box-arrow-in-right"
+                                        Valor="@Formato.Dinero(resumen.Sesion.MontoInicial)" />
+                </div>
+                <div class="col-6 col-lg-3">
+                    <TarjetaEstadistica Titulo="Ingresos" Icono="bi-arrow-down-circle"
+                                        Valor="@Formato.Dinero(resumen.TotalIngresos)" ClaseColor="text-success" />
+                </div>
+                <div class="col-6 col-lg-3">
+                    <TarjetaEstadistica Titulo="Egresos" Icono="bi-arrow-up-circle"
+                                        Valor="@Formato.Dinero(resumen.TotalEgresos)" ClaseColor="text-danger" />
+                </div>
+            </div>
+
+            <section aria-labelledby="titulo-movimiento" class="mb-4">
+                <h2 id="titulo-movimiento" class="h5">Registrar ingreso o egreso</h2>
+                <FormularioMovimientoCaja @key="versionFormulario"
+                                          SaldoActual="resumen.SaldoEsperado"
+                                          Guardando="guardando"
+                                          OnRegistrar="RegistrarMovimientoAsync" />
+            </section>
+
+            <section aria-labelledby="titulo-movimientos" class="mb-4">
+                <h2 id="titulo-movimientos" class="h5">Movimientos de esta caja</h2>
+
+                @if (movimientos is null || movimientos.Items.Count == 0)
+                {
+                    <p class="text-secondary">Todavía no hay ingresos ni egresos en esta caja.</p>
+                }
+                else
+                {
+                    <div class="table-responsive tarjeta p-0 mb-3">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Fecha</th>
+                                    <th scope="col">Tipo</th>
+                                    <th scope="col">Concepto</th>
+                                    <th scope="col" class="text-end">Monto</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var movimiento in movimientos.Items)
+                                {
+                                    <tr>
+                                        <td class="text-nowrap">@Formato.FechaHora(movimiento.Fecha)</td>
+                                        <td>@movimiento.Tipo</td>
+                                        <td>@movimiento.Concepto</td>
+                                        <td class="text-end fw-semibold text-nowrap @(movimiento.Tipo == TipoMovimientoCaja.Ingreso ? "text-success" : "text-danger")">
+                                            @(movimiento.Tipo == TipoMovimientoCaja.Ingreso ? "+" : "-")@Formato.Dinero(movimiento.Monto)
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <Paginacion PaginaActual="paginaMovimientos" TotalPaginas="movimientos.TotalPaginas"
+                                OnCambio="CambiarPaginaMovimientosAsync" />
+                }
+            </section>
+
+            <section aria-labelledby="titulo-cierre" class="mb-4">
+                <h2 id="titulo-cierre" class="h5">Cerrar caja</h2>
+
+                <EditForm Model="cierre" OnValidSubmit="PedirCierre" class="tarjeta">
+                    <DataAnnotationsValidator />
+                    <div class="mb-3">
+                        <label for="cierre-monto" class="form-label">Efectivo contado *</label>
+                        <InputNumber id="cierre-monto" class="form-control" @bind-Value="cierre.Monto" />
+                        <div class="form-text">Contá el efectivo que hay en la caja y escribilo acá.</div>
+                        <ValidationMessage For="() => cierre.Monto" />
+                    </div>
+                    <button type="submit" class="btn btn-outline-danger" disabled="@guardando">Cerrar caja…</button>
+                </EditForm>
+            </section>
+        }
+
+        <section aria-labelledby="titulo-historial">
+            <h2 id="titulo-historial" class="h5">Historial de cajas cerradas</h2>
+
+            @if (historial is null || historial.Items.Count == 0)
+            {
+                <p class="text-secondary">Todavía no hay cajas cerradas.</p>
+            }
+            else
+            {
+                <div class="table-responsive tarjeta p-0 mb-3">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th scope="col">Apertura</th>
+                                <th scope="col">Cierre</th>
+                                <th scope="col" class="text-end">Inicial</th>
+                                <th scope="col" class="text-end">Ingresos</th>
+                                <th scope="col" class="text-end">Egresos</th>
+                                <th scope="col" class="text-end">Esperado</th>
+                                <th scope="col" class="text-end">Contado</th>
+                                <th scope="col" class="text-end">Diferencia</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in historial.Items)
+                            {
+                                decimal diferencia = item.Sesion.Diferencia ?? 0m;
+                                <tr>
+                                    <td class="text-nowrap">@Formato.FechaHora(item.Sesion.FechaApertura)</td>
+                                    <td class="text-nowrap">@(item.Sesion.FechaCierre.HasValue ? Formato.FechaHora(item.Sesion.FechaCierre.Value) : "")</td>
+                                    <td class="text-end text-nowrap">@Formato.Dinero(item.Sesion.MontoInicial)</td>
+                                    <td class="text-end text-nowrap">@Formato.Dinero(item.TotalIngresos)</td>
+                                    <td class="text-end text-nowrap">@Formato.Dinero(item.TotalEgresos)</td>
+                                    <td class="text-end text-nowrap">@Formato.Dinero(item.SaldoEsperado)</td>
+                                    <td class="text-end text-nowrap">@Formato.Dinero(item.Sesion.EfectivoContado ?? 0m)</td>
+                                    <td class="text-end text-nowrap fw-semibold @(diferencia == 0m ? "text-success" : diferencia > 0m ? "text-warning" : "text-danger")">
+                                        @(diferencia == 0m ? "Cuadra" : (diferencia > 0m ? "+" : "-") + Formato.Dinero(Math.Abs(diferencia)))
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                <Paginacion PaginaActual="paginaHistorial" TotalPaginas="historial.TotalPaginas"
+                            OnCambio="CambiarPaginaHistorialAsync" />
+            }
+        </section>
+    }
+
+    <ConfirmDialog Visible="mostrarConfirmacionCierre"
+                   Titulo="Cerrar caja"
+                   Mensaje="@MensajeCierre"
+                   TextoConfirmar="Cerrar caja"
+                   OnConfirmar="ConfirmarCierreAsync"
+                   OnCancelar="CancelarCierre" />
+</section>
+
+@code {
+    private const int TamanioPaginaMovimientos = 10;
+    private const int TamanioPaginaHistorial = 5;
+
+    private ResumenCaja? resumen;
+    private ResumenCaja? ultimoCierre;
+    private PagedResult<MovimientoCaja>? movimientos;
+    private PagedResult<ResumenCaja>? historial;
+
+    private SolicitudMonto apertura = new();
+    private SolicitudMonto cierre = new();
+
+    private int paginaMovimientos = 1;
+    private int paginaHistorial = 1;
+    private int versionFormulario;
+    private bool cargando = true;
+    private bool guardando;
+    private bool mostrarConfirmacionCierre;
+    private string? mensajeError;
+    private string? mensajeExito;
+
+    private string MensajeCierre =>
+        $"Vas a cerrar la caja con {Formato.Dinero(cierre.Monto)} contados. Esta acción no se puede deshacer.";
+
+    private decimal DiferenciaCierre => ultimoCierre?.Sesion.Diferencia ?? 0m;
+
+    private string ClaseDiferenciaCierre =>
+        DiferenciaCierre == 0m ? "text-success" : DiferenciaCierre > 0m ? "text-warning" : "text-danger";
+
+    private string IconoDiferenciaCierre =>
+        DiferenciaCierre == 0m ? "bi-check-circle" : "bi-exclamation-triangle";
+
+    private string TextoDiferenciaCierre =>
+        DiferenciaCierre == 0m
+            ? "La caja cuadra."
+            : DiferenciaCierre > 0m
+                ? $"Sobran {Formato.Dinero(DiferenciaCierre)}."
+                : $"Faltan {Formato.Dinero(-DiferenciaCierre)}.";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RecargarAsync();
+        cargando = false;
+    }
+
+    private async Task RecargarAsync()
+    {
+        try
+        {
+            resumen = await CajaService.ObtenerResumenAbiertaAsync();
+
+            movimientos = resumen is null
+                ? null
+                : await CajaService.ObtenerMovimientosAsync(resumen.Sesion.Id, paginaMovimientos, TamanioPaginaMovimientos);
+
+            historial = await CajaService.ObtenerHistorialAsync(paginaHistorial, TamanioPaginaHistorial);
+        }
+        catch (Exception)
+        {
+            mensajeError = "No se pudo cargar la caja. Probá de nuevo en unos segundos.";
+        }
+    }
+
+    private async Task AbrirCajaAsync()
+    {
+        guardando = true;
+        mensajeError = null;
+        mensajeExito = null;
+
+        try
+        {
+            await CajaService.AbrirAsync(apertura.Monto);
+
+            apertura = new SolicitudMonto();
+            cierre = new SolicitudMonto();
+            ultimoCierre = null;
+            paginaMovimientos = 1;
+            mensajeExito = "Caja abierta correctamente.";
+
+            await RecargarAsync();
+        }
+        catch (ReglaDeNegocioException ex)
+        {
+            mensajeError = ex.Message;
+        }
+        catch (Exception)
+        {
+            mensajeError = "No se pudo abrir la caja. Probá de nuevo en unos segundos.";
+        }
+        finally
+        {
+            guardando = false;
+        }
+    }
+
+    private async Task RegistrarMovimientoAsync(SolicitudMovimientoCaja solicitud)
+    {
+        guardando = true;
+        mensajeError = null;
+        mensajeExito = null;
+
+        try
+        {
+            if (solicitud.Tipo == TipoMovimientoCaja.Ingreso)
+            {
+                await CajaService.RegistrarIngresoAsync(solicitud.Concepto, solicitud.Monto);
+            }
+            else
+            {
+                await CajaService.RegistrarEgresoAsync(solicitud.Concepto, solicitud.Monto);
+            }
+
+            mensajeExito = "Movimiento registrado correctamente.";
+            versionFormulario++;
+            paginaMovimientos = 1;
+
+            await RecargarAsync();
+        }
+        catch (ReglaDeNegocioException ex)
+        {
+            mensajeError = ex.Message;
+        }
+        catch (Exception)
+        {
+            mensajeError = "No se pudo registrar el movimiento. Probá de nuevo en unos segundos.";
+        }
+        finally
+        {
+            guardando = false;
+        }
+    }
+
+    private void PedirCierre()
+    {
+        mostrarConfirmacionCierre = true;
+    }
+
+    private void CancelarCierre()
+    {
+        mostrarConfirmacionCierre = false;
+    }
+
+    private async Task ConfirmarCierreAsync()
+    {
+        mostrarConfirmacionCierre = false;
+        guardando = true;
+        mensajeError = null;
+        mensajeExito = null;
+
+        try
+        {
+            ultimoCierre = await CajaService.CerrarAsync(cierre.Monto);
+
+            cierre = new SolicitudMonto();
+            paginaHistorial = 1;
+            mensajeExito = "Caja cerrada correctamente.";
+
+            await RecargarAsync();
+        }
+        catch (ReglaDeNegocioException ex)
+        {
+            mensajeError = ex.Message;
+        }
+        catch (Exception)
+        {
+            mensajeError = "No se pudo cerrar la caja. Probá de nuevo en unos segundos.";
+        }
+        finally
+        {
+            guardando = false;
+        }
+    }
+
+    private async Task CambiarPaginaMovimientosAsync(int pagina)
+    {
+        paginaMovimientos = pagina;
+        await RecargarAsync();
+    }
+
+    private async Task CambiarPaginaHistorialAsync(int pagina)
+    {
+        paginaHistorial = pagina;
+        await RecargarAsync();
+    }
+
+    private void CerrarError()
+    {
+        mensajeError = null;
+    }
+
+    private void CerrarExito()
+    {
+        mensajeExito = null;
+    }
+}

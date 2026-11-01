@@ -1,0 +1,31 @@
+﻿<div class="tarjeta h-100">
+    <div class="d-flex align-items-center gap-2 text-secondary small">
+        @if (!string.IsNullOrWhiteSpace(Icono))
+        {
+            <i class="bi @Icono" aria-hidden="true"></i>
+        }
+        <span>@Titulo</span>
+    </div>
+    <div class="fs-4 fw-semibold @ClaseColor">@Valor</div>
+    @if (!string.IsNullOrWhiteSpace(Detalle))
+    {
+        <div class="small text-secondary">@Detalle</div>
+    }
+</div>
+
+@code {
+    /// <summary>Nombre del dato que se muestra.</summary>
+    [Parameter] public string Titulo { get; set; } = string.Empty;
+
+    /// <summary>Valor ya formateado como texto.</summary>
+    [Parameter] public string Valor { get; set; } = string.Empty;
+
+    /// <summary>Clase del ícono de Bootstrap Icons (por ejemplo, bi-cash-stack). Es opcional.</summary>
+    [Parameter] public string? Icono { get; set; }
+
+    /// <summary>Clase de Bootstrap para el color del valor (por ejemplo, text-success). Es opcional.</summary>
+    [Parameter] public string? ClaseColor { get; set; }
+
+    /// <summary>Texto pequeño debajo del valor. Es opcional.</summary>
+    [Parameter] public string? Detalle { get; set; }
+}
