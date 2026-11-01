@@ -1,5 +1,4 @@
-﻿using System.Globalization;
-using Kiosco.Data;
+﻿using Kiosco.Data;
 using Kiosco.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -11,8 +10,6 @@ namespace Kiosco.Services;
 public static class ReglasCaja
 {
     private const decimal MontoMaximo = 100_000_000m;
-
-    private static readonly CultureInfo Cultura = new("es-AR");
 
     /// <summary>
     /// Calcula el total de ingresos y de egresos de una sesión.
@@ -107,7 +104,7 @@ public static class ReglasCaja
         if (tipo == TipoMovimientoCaja.Egreso && monto > saldoActual)
         {
             throw new ReglaDeNegocioException(
-                $"El egreso ({monto.ToString("C", Cultura)}) supera el saldo de la caja ({saldoActual.ToString("C", Cultura)}).");
+                $"El egreso ({Formato.Dinero(monto)}) supera el saldo de la caja ({Formato.Dinero(saldoActual)}).");
         }
 
         return new MovimientoCaja
