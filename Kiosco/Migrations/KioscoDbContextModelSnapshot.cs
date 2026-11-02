@@ -98,7 +98,12 @@ namespace Kiosco.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
 
+                    b.Property<int?>("VentaId")
+                        .HasColumnType("int");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("VentaId");
 
                     b.HasIndex("SesionCajaId", "Fecha");
 
@@ -438,6 +443,71 @@ namespace Kiosco.Migrations
                     b.ToTable("SesionesCaja");
                 });
 
+            modelBuilder.Entity("Kiosco.Models.Venta", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("Fecha")
+                        .HasColumnType("datetime2");
+
+                    b.Property<decimal>("MontoRecibido")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("SesionCajaId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("Total")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("Vuelto")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Fecha");
+
+                    b.HasIndex("SesionCajaId");
+
+                    b.ToTable("Ventas");
+                });
+
+            modelBuilder.Entity("Kiosco.Models.VentaItem", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("Cantidad")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("PrecioUnitario")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("ProductoId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("VentaId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProductoId");
+
+                    b.HasIndex("VentaId");
+
+                    b.ToTable("VentaItems");
+                });
+
             modelBuilder.Entity("Kiosco.Models.MovimientoCaja", b =>
                 {
                     b.HasOne("Kiosco.Models.SesionCaja", "SesionCaja")
@@ -446,7 +516,14 @@ namespace Kiosco.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("Kiosco.Models.Venta", "Venta")
+                        .WithMany()
+                        .HasForeignKey("VentaId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.Navigation("SesionCaja");
+
+                    b.Navigation("Venta");
                 });
 
             modelBuilder.Entity("Kiosco.Models.MovimientoStock", b =>
@@ -471,6 +548,36 @@ namespace Kiosco.Migrations
                     b.Navigation("Categoria");
                 });
 
+            modelBuilder.Entity("Kiosco.Models.Venta", b =>
+                {
+                    b.HasOne("Kiosco.Models.SesionCaja", "SesionCaja")
+                        .WithMany()
+                        .HasForeignKey("SesionCajaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("SesionCaja");
+                });
+
+            modelBuilder.Entity("Kiosco.Models.VentaItem", b =>
+                {
+                    b.HasOne("Kiosco.Models.Producto", "Producto")
+                        .WithMany()
+                        .HasForeignKey("ProductoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Kiosco.Models.Venta", "Venta")
+                        .WithMany("Items")
+                        .HasForeignKey("VentaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Producto");
+
+                    b.Navigation("Venta");
+                });
+
             modelBuilder.Entity("Kiosco.Models.Categoria", b =>
                 {
                     b.Navigation("Productos");
@@ -479,6 +586,11 @@ namespace Kiosco.Migrations
             modelBuilder.Entity("Kiosco.Models.SesionCaja", b =>
                 {
                     b.Navigation("Movimientos");
+                });
+
+            modelBuilder.Entity("Kiosco.Models.Venta", b =>
+                {
+                    b.Navigation("Items");
                 });
 #pragma warning restore 612, 618
         }

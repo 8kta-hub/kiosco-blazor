@@ -23,6 +23,10 @@ public class KioscoDbContext : DbContext
 
     public DbSet<MovimientoCaja> MovimientosCaja => Set<MovimientoCaja>();
 
+    public DbSet<Venta> Ventas => Set<Venta>();
+
+    public DbSet<VentaItem> VentaItems => Set<VentaItem>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -82,6 +86,40 @@ public class KioscoDbContext : DbContext
             entidad.HasOne(m => m.SesionCaja)
                    .WithMany(s => s.Movimientos)
                    .HasForeignKey(m => m.SesionCajaId)
+                   .OnDelete(DeleteBehavior.Restrict);
+
+            entidad.HasOne(m => m.Venta)
+                   .WithMany()
+                   .HasForeignKey(m => m.VentaId)
+                   .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<Venta>(entidad =>
+        {
+            entidad.Property(v => v.Total).HasPrecision(18, 2);
+            entidad.Property(v => v.MontoRecibido).HasPrecision(18, 2);
+            entidad.Property(v => v.Vuelto).HasPrecision(18, 2);
+
+            entidad.HasIndex(v => v.Fecha);
+
+            entidad.HasOne(v => v.SesionCaja)
+                   .WithMany()
+                   .HasForeignKey(v => v.SesionCajaId)
+                   .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<VentaItem>(entidad =>
+        {
+            entidad.Property(i => i.PrecioUnitario).HasPrecision(18, 2);
+
+            entidad.HasOne(i => i.Venta)
+                   .WithMany(v => v.Items)
+                   .HasForeignKey(i => i.VentaId)
+                   .OnDelete(DeleteBehavior.Cascade);
+
+            entidad.HasOne(i => i.Producto)
+                   .WithMany()
+                   .HasForeignKey(i => i.ProductoId)
                    .OnDelete(DeleteBehavior.Restrict);
         });
 

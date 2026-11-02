@@ -24,4 +24,9 @@ public class MovimientoCaja
 
     /// <summary>Momento del movimiento, en UTC.</summary>
     public DateTime Fecha { get; set; }
+
+    /// <summary>Venta que originó este ingreso. Es nulo en los movimientos manuales.</summary>
+    public int? VentaId { get; set; }
+
+    public Venta? Venta { get; set; }
 }
