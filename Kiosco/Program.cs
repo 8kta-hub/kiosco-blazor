@@ -24,9 +24,10 @@ builder.Services.AddScoped<ICategoriaService, CategoriaService>();
 builder.Services.AddScoped<IStockService, StockService>();
 builder.Services.AddScoped<ICajaService, CajaService>();
 builder.Services.AddScoped<IVentaService, VentaService>();
+builder.Services.AddScoped<IEstadisticaService, EstadisticaService>(); // NUEVO (M7.1)
 
 // State Service: carrito de la venta en curso (una instancia por usuario conectado)
-builder.Services.AddScoped<CarritoState>(); // NUEVO (M6.2)
+builder.Services.AddScoped<CarritoState>();
 
 var app = builder.Build();
 
