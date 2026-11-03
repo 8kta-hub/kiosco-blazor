@@ -1,6 +1,7 @@
 ﻿@implements IDisposable
 @inject IEstadisticaService Estadisticas
 @inject NavigationManager Nav
+@inject JsKiosco Js
 
 <aside class="resumen" aria-label="Resumen del kiosco">
     @if (resumen is null)
@@ -35,6 +36,7 @@
 @code {
     private ResumenEncabezado? resumen;
     private bool huboError;
+    private int? stockBajoAnterior;
     private CancellationTokenSource? cancelacion;
     private PeriodicTimer? temporizador;
 
@@ -61,7 +63,19 @@
     {
         try
         {
-            resumen = await Estadisticas.ObtenerResumenEncabezadoAsync();
+            ResumenEncabezado nuevo = await Estadisticas.ObtenerResumenEncabezadoAsync();
+
+            // Si aumentó la cantidad de productos con stock bajo, se avisa con una notificación del navegador.
+            // La primera carga solo toma nota del valor: no avisa.
+            if (stockBajoAnterior is int anterior && nuevo.ProductosStockBajo > anterior)
+            {
+                await Js.NotificarAsync(
+                    "Stock bajo",
+                    $"Ahora hay {nuevo.ProductosStockBajo} productos con stock bajo.");
+            }
+
+            stockBajoAnterior = nuevo.ProductosStockBajo;
+            resumen = nuevo;
             huboError = false;
         }
         catch (Exception)

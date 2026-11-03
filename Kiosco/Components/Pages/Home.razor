@@ -1,5 +1,6 @@
 ﻿@page "/"
 @inject IEstadisticaService Estadisticas
+@inject JsKiosco Js
 
 <PageTitle>Kiosco</PageTitle>
 
@@ -48,6 +49,30 @@
                         </ul>
                         <a href="stock">Registrar una entrada</a>
                     }
+
+                    <div class="mt-3 small">
+                        @switch (permisoAvisos)
+                        {
+                            case "granted":
+                                <span class="text-success">
+                                    <i class="bi bi-bell" aria-hidden="true"></i> Avisos del navegador activados
+                                </span>
+                                break;
+                            case "denied":
+                                <span class="text-secondary">
+                                    Los avisos están bloqueados en este navegador. Podés habilitarlos desde la configuración del sitio.
+                                </span>
+                                break;
+                            case "unsupported":
+                                <span class="text-secondary">Este navegador no admite avisos.</span>
+                                break;
+                            case "default":
+                                <button type="button" class="btn btn-sm btn-outline-primary" @onclick="ActivarAvisosAsync">
+                                    <i class="bi bi-bell" aria-hidden="true"></i> Activar avisos de stock bajo
+                                </button>
+                                break;
+                        }
+                    </div>
                 </section>
             </div>
 
@@ -126,6 +151,7 @@
     private PanelKiosco? panel;
     private bool cargando = true;
     private string? mensajeError;
+    private string? permisoAvisos;
 
     protected override async Task OnInitializedAsync()
     {
@@ -140,6 +166,28 @@
         finally
         {
             cargando = false;
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            return;
+        }
+
+        // Recién ahora hay navegador: se consulta si ya se dio permiso para los avisos.
+        permisoAvisos = await Js.PermisoNotificacionesAsync();
+        StateHasChanged();
+    }
+
+    private async Task ActivarAvisosAsync()
+    {
+        permisoAvisos = await Js.PedirPermisoNotificacionesAsync();
+
+        if (permisoAvisos == "granted")
+        {
+            await Js.NotificarAsync("Avisos activados", "Te avisaremos cuando haya más productos con stock bajo.");
         }
     }
 
