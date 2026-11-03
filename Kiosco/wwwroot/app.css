@@ -60,7 +60,7 @@ h1:focus {
 }
 
 /* =====================================================================
-   Validación de formularios (se usa desde el módulo 3)
+   Validación de formularios
    ===================================================================== */
 .valid.modified:not([type=checkbox]) {
     outline: 1px solid var(--color-exito);
@@ -84,3 +84,32 @@ h1:focus {
     .blazor-error-boundary::after {
         content: "Ocurrió un error en este componente.";
     }
+
+/* =====================================================================
+   Impresión: solo se imprime lo marcado con la clase .imprimible
+   ===================================================================== */
+@media print {
+    .no-imprimir,
+    #blazor-error-ui {
+        display: none !important;
+    }
+
+    body:has(.imprimible) * {
+        visibility: hidden;
+    }
+
+    body:has(.imprimible) .imprimible,
+    body:has(.imprimible) .imprimible * {
+        visibility: visible;
+        color: #000 !important;
+    }
+
+    body:has(.imprimible) .imprimible {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        background: #fff !important;
+        box-shadow: none !important;
+    }
+}
