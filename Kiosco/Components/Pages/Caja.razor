@@ -1,5 +1,6 @@
 ﻿@page "/caja"
 @inject ICajaService CajaService
+@inject JsKiosco Js
 
 <PageTitle>Caja</PageTitle>
 
@@ -30,7 +31,7 @@
     {
         @if (ultimoCierre is not null)
         {
-            <section aria-labelledby="titulo-arqueo" class="tarjeta mb-4">
+            <section aria-labelledby="titulo-arqueo" class="tarjeta mb-4 imprimible">
                 <h2 id="titulo-arqueo" class="h5">Arqueo de la caja que acabás de cerrar</h2>
                 <dl class="row mb-2">
                     <dt class="col-7 col-sm-4 fw-normal text-secondary">Saldo esperado</dt>
@@ -42,6 +43,15 @@
                     <i class="bi @IconoDiferenciaCierre" aria-hidden="true"></i>
                     @TextoDiferenciaCierre
                 </p>
+
+                <div class="d-flex flex-wrap gap-2 mt-3 no-imprimir">
+                    <button type="button" class="btn btn-outline-primary" @onclick="CopiarResumenAsync">
+                        <i class="bi bi-clipboard" aria-hidden="true"></i> Copiar resumen
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" @onclick="ImprimirAsync">
+                        <i class="bi bi-printer" aria-hidden="true"></i> Imprimir
+                    </button>
+                </div>
             </section>
         }
 
@@ -380,6 +390,61 @@
         {
             guardando = false;
         }
+    }
+
+    private async Task CopiarResumenAsync()
+    {
+        if (ultimoCierre is null)
+        {
+            return;
+        }
+
+        bool copiado = await Js.CopiarAsync(ConstruirResumenCierre(ultimoCierre));
+
+        if (copiado)
+        {
+            mensajeError = null;
+            mensajeExito = "Resumen copiado al portapapeles.";
+        }
+        else
+        {
+            mensajeExito = null;
+            mensajeError = "No se pudo copiar el resumen. Revisá los permisos del navegador.";
+        }
+    }
+
+    private async Task ImprimirAsync()
+    {
+        await Js.ImprimirAsync();
+    }
+
+    private static string ConstruirResumenCierre(ResumenCaja resumenCierre)
+    {
+        SesionCaja sesion = resumenCierre.Sesion;
+        decimal diferencia = sesion.Diferencia ?? 0m;
+
+        string resultado = diferencia == 0m
+            ? "La caja cuadra."
+            : diferencia > 0m
+                ? $"Sobran {Formato.Dinero(diferencia)}."
+                : $"Faltan {Formato.Dinero(-diferencia)}.";
+
+        string fechaCierre = sesion.FechaCierre.HasValue ? Formato.FechaHora(sesion.FechaCierre.Value) : "-";
+
+        string[] lineas =
+        {
+            "Cierre de caja",
+            $"Apertura: {Formato.FechaHora(sesion.FechaApertura)}",
+            $"Cierre: {fechaCierre}",
+            $"Monto inicial: {Formato.Dinero(sesion.MontoInicial)}",
+            $"Ingresos: {Formato.Dinero(resumenCierre.TotalIngresos)}",
+            $"Egresos: {Formato.Dinero(resumenCierre.TotalEgresos)}",
+            $"Saldo esperado: {Formato.Dinero(resumenCierre.SaldoEsperado)}",
+            $"Efectivo contado: {Formato.Dinero(sesion.EfectivoContado ?? 0m)}",
+            $"Resultado: {resultado}"
+        };
+
+        return string.Join(Environment.NewLine, lineas);
     }
 
     private async Task CambiarPaginaMovimientosAsync(int pagina)

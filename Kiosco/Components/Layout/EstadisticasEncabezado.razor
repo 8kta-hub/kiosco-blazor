@@ -1,0 +1,127 @@
+﻿@implements IDisposable
+@inject IEstadisticaService Estadisticas
+@inject NavigationManager Nav
+@inject JsKiosco Js
+
+<aside class="resumen" aria-label="Resumen del kiosco">
+    @if (resumen is null)
+    {
+        <p class="text-secondary small mb-0">@(huboError ? "No se pudo cargar el resumen." : "Cargando resumen…")</p>
+    }
+    else
+    {
+        <div class="row g-2">
+            <div class="col-6 col-md-3">
+                <TarjetaEstadistica Compacta="true" Titulo="Productos activos" Icono="bi-box-seam"
+                                    Valor="@resumen.ProductosActivos.ToString()" />
+            </div>
+            <div class="col-6 col-md-3">
+                <TarjetaEstadistica Compacta="true" Titulo="Stock bajo" Icono="bi-exclamation-triangle"
+                                    Valor="@resumen.ProductosStockBajo.ToString()"
+                                    ClaseColor="@(resumen.ProductosStockBajo > 0 ? "text-danger" : "text-success")" />
+            </div>
+            <div class="col-6 col-md-3">
+                <TarjetaEstadistica Compacta="true" Titulo="Saldo de caja" Icono="bi-cash-stack"
+                                    Valor="@(resumen.SaldoCaja.HasValue ? Formato.Dinero(resumen.SaldoCaja.Value) : "Caja cerrada")" />
+            </div>
+            <div class="col-6 col-md-3">
+                <TarjetaEstadistica Compacta="true" Titulo="Ventas de hoy" Icono="bi-receipt"
+                                    Valor="@Formato.Dinero(resumen.TotalVentasHoy)"
+                                    Detalle="@(resumen.VentasHoy == 1 ? "1 venta" : $"{resumen.VentasHoy} ventas")" />
+            </div>
+        </div>
+    }
+</aside>
+
+@code {
+    private ResumenEncabezado? resumen;
+    private bool huboError;
+    private int? stockBajoAnterior;
+    private CancellationTokenSource? cancelacion;
+    private PeriodicTimer? temporizador;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Nav.LocationChanged += AlCambiarLaPagina;
+        await ActualizarAsync();
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            return;
+        }
+
+        // Se arranca una sola vez, cuando el componente ya existe en el navegador.
+        cancelacion = new CancellationTokenSource();
+        temporizador = new PeriodicTimer(TimeSpan.FromSeconds(15));
+        _ = RepetirActualizacionAsync(temporizador, cancelacion.Token);
+    }
+
+    private async Task ActualizarAsync()
+    {
+        try
+        {
+            ResumenEncabezado nuevo = await Estadisticas.ObtenerResumenEncabezadoAsync();
+
+            // Si aumentó la cantidad de productos con stock bajo, se avisa con una notificación del navegador.
+            // La primera carga solo toma nota del valor: no avisa.
+            if (stockBajoAnterior is int anterior && nuevo.ProductosStockBajo > anterior)
+            {
+                await Js.NotificarAsync(
+                    "Stock bajo",
+                    $"Ahora hay {nuevo.ProductosStockBajo} productos con stock bajo.");
+            }
+
+            stockBajoAnterior = nuevo.ProductosStockBajo;
+            resumen = nuevo;
+            huboError = false;
+        }
+        catch (Exception)
+        {
+            // Si falla, se conserva el último dato y se avisa discretamente.
+            huboError = true;
+        }
+    }
+
+    private async Task RepetirActualizacionAsync(PeriodicTimer timer, CancellationToken token)
+    {
+        try
+        {
+            while (await timer.WaitForNextTickAsync(token))
+            {
+                await InvokeAsync(async () =>
+                {
+                    await ActualizarAsync();
+                    StateHasChanged();
+                });
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // El componente se destruyó: el ciclo termina.
+        }
+        catch (ObjectDisposedException)
+        {
+            // La conexión ya se cerró.
+        }
+    }
+
+    private void AlCambiarLaPagina(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
+    {
+        _ = InvokeAsync(async () =>
+        {
+            await ActualizarAsync();
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose()
+    {
+        Nav.LocationChanged -= AlCambiarLaPagina;
+        cancelacion?.Cancel();
+        cancelacion?.Dispose();
+        temporizador?.Dispose();
+    }
+}
