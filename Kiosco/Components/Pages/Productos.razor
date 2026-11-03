@@ -1,6 +1,6 @@
 ﻿@page "/productos"
-@using System.Globalization
 @inject IProductoService ProductoService
+@inject JsKiosco Js
 
 <PageTitle>Productos</PageTitle>
 
@@ -64,7 +64,7 @@
                                     }
                                 </td>
                                 <td>@producto.Categoria?.Nombre</td>
-                                <td class="text-end">@producto.PrecioVenta.ToString("C", Cultura)</td>
+                                <td class="text-end text-nowrap">@Formato.Dinero(producto.PrecioVenta)</td>
                                 <td class="text-center"><BadgeStock Stock="producto.StockActual" Minimo="producto.StockMinimo" /></td>
                                 <td class="text-end text-nowrap">
                                     <a class="btn btn-sm btn-outline-primary" href="productos/@producto.Id"
@@ -98,13 +98,12 @@
 @code {
     private const int TamanioPagina = 5;
 
-    private static readonly CultureInfo Cultura = new("es-AR");
-
     private PagedResult<Producto>? resultado;
     private string textoBusqueda = string.Empty;
     private string? busquedaAplicada;
     private int paginaActual = 1;
     private bool cargando = true;
+    private bool enfocarBuscador = true;
     private string? mensajeError;
     private Producto? productoAEliminar;
 
@@ -114,6 +113,16 @@
     protected override async Task OnInitializedAsync()
     {
         await CargarAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // Cuando termina de cargar por primera vez, el cursor queda en el buscador.
+        if (enfocarBuscador && !cargando)
+        {
+            enfocarBuscador = false;
+            await Js.EnfocarAsync("buscador");
+        }
     }
 
     private async Task CargarAsync()
