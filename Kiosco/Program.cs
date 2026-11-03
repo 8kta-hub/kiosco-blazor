@@ -24,10 +24,13 @@ builder.Services.AddScoped<ICategoriaService, CategoriaService>();
 builder.Services.AddScoped<IStockService, StockService>();
 builder.Services.AddScoped<ICajaService, CajaService>();
 builder.Services.AddScoped<IVentaService, VentaService>();
-builder.Services.AddScoped<IEstadisticaService, EstadisticaService>(); // NUEVO (M7.1)
+builder.Services.AddScoped<IEstadisticaService, EstadisticaService>();
 
 // State Service: carrito de la venta en curso (una instancia por usuario conectado)
 builder.Services.AddScoped<CarritoState>();
+
+// JavaScript Interop: envoltorio del módulo kiosco.js (se libera al cerrarse el circuito)
+builder.Services.AddScoped<JsKiosco>(); // NUEVO (M7.2)
 
 var app = builder.Build();
 
