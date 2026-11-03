@@ -1,8 +1,150 @@
 ﻿@page "/"
+@inject IEstadisticaService Estadisticas
 
 <PageTitle>Kiosco</PageTitle>
 
-<section class="tarjeta">
-    <h1>Kiosco</h1>
-    <p>Sistema de gestión de stock y caja en efectivo.</p>
+<section aria-labelledby="titulo-inicio">
+    <h1 id="titulo-inicio" class="h3 mb-3">Inicio</h1>
+
+    <AlertError Mensaje="@mensajeError" OnCerrar="CerrarError" />
+
+    <div class="d-flex flex-wrap gap-2 mb-4">
+        <a class="btn btn-primary" href="vender"><i class="bi bi-cart3" aria-hidden="true"></i> Vender</a>
+        <a class="btn btn-outline-primary" href="stock"><i class="bi bi-boxes" aria-hidden="true"></i> Stock</a>
+        <a class="btn btn-outline-primary" href="caja"><i class="bi bi-cash-coin" aria-hidden="true"></i> Caja</a>
+    </div>
+
+    @if (cargando)
+    {
+        <div class="d-flex align-items-center gap-2" role="status">
+            <div class="spinner-border spinner-border-sm" aria-hidden="true"></div>
+            <span>Cargando panel…</span>
+        </div>
+    }
+    else if (panel is not null)
+    {
+        <div class="row g-3">
+            <div class="col-12 col-lg-4">
+                <section aria-labelledby="titulo-bajo" class="tarjeta h-100">
+                    <h2 id="titulo-bajo" class="h5">Stock bajo</h2>
+
+                    @if (panel.StockBajo.Count == 0)
+                    {
+                        <p class="text-secondary mb-0">Todo el stock está en orden.</p>
+                    }
+                    else
+                    {
+                        <ul class="list-unstyled mb-2">
+                            @foreach (var producto in panel.StockBajo)
+                            {
+                                <li class="d-flex justify-content-between align-items-center gap-2 py-1 border-bottom">
+                                    <span>@producto.Nombre</span>
+                                    <span class="text-nowrap">
+                                        <BadgeStock Stock="producto.StockActual" Minimo="producto.StockMinimo" />
+                                        <span class="small text-secondary">mín. @producto.StockMinimo</span>
+                                    </span>
+                                </li>
+                            }
+                        </ul>
+                        <a href="stock">Registrar una entrada</a>
+                    }
+                </section>
+            </div>
+
+            <div class="col-12 col-lg-4">
+                <section aria-labelledby="titulo-vendidos" class="tarjeta h-100">
+                    <h2 id="titulo-vendidos" class="h5">Más vendidos (7 días)</h2>
+
+                    @if (panel.MasVendidos.Count == 0)
+                    {
+                        <p class="text-secondary mb-0">Todavía no hay ventas en los últimos 7 días.</p>
+                    }
+                    else
+                    {
+                        <table class="table table-sm align-middle mb-0">
+                            <caption class="visually-hidden">Productos más vendidos en los últimos 7 días</caption>
+                            <thead>
+                                <tr>
+                                    <th scope="col">Producto</th>
+                                    <th scope="col" class="text-end">Unid.</th>
+                                    <th scope="col" class="text-end">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var vendido in panel.MasVendidos)
+                                {
+                                    <tr>
+                                        <td>@vendido.Nombre</td>
+                                        <td class="text-end">@vendido.Unidades</td>
+                                        <td class="text-end text-nowrap">@Formato.Dinero(vendido.Total)</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    }
+                </section>
+            </div>
+
+            <div class="col-12 col-lg-4">
+                <section aria-labelledby="titulo-categorias" class="tarjeta h-100">
+                    <h2 id="titulo-categorias" class="h5">Stock por categoría</h2>
+
+                    @if (panel.StockPorCategoria.Count == 0)
+                    {
+                        <p class="text-secondary mb-0">No hay productos activos.</p>
+                    }
+                    else
+                    {
+                        <table class="table table-sm align-middle mb-0">
+                            <caption class="visually-hidden">Productos y unidades en stock por categoría</caption>
+                            <thead>
+                                <tr>
+                                    <th scope="col">Categoría</th>
+                                    <th scope="col" class="text-end">Productos</th>
+                                    <th scope="col" class="text-end">Unidades</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var categoria in panel.StockPorCategoria)
+                                {
+                                    <tr>
+                                        <td>@categoria.Categoria</td>
+                                        <td class="text-end">@categoria.Productos</td>
+                                        <td class="text-end">@categoria.Unidades</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    }
+                </section>
+            </div>
+        </div>
+    }
 </section>
+
+@code {
+    private PanelKiosco? panel;
+    private bool cargando = true;
+    private string? mensajeError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            panel = await Estadisticas.ObtenerPanelAsync();
+        }
+        catch (Exception)
+        {
+            mensajeError = "No se pudo cargar el panel. Probá de nuevo en unos segundos.";
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private void CerrarError()
+    {
+        mensajeError = null;
+    }
+}
