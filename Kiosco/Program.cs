@@ -9,7 +9,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
-// Cadena de conexión (en desarrollo viene de User Secrets)
+// Cadena de conexión (en desarrollo viene de User Secrets; en producción, de una variable de entorno)
 var cadenaConexion = builder.Configuration.GetConnectionString("Default")
     ?? throw new InvalidOperationException(
         "Falta la cadena de conexión 'Default'. Configurala en User Secrets (desarrollo) o en App Settings (producción).");
@@ -24,9 +24,17 @@ builder.Services.AddScoped<ICategoriaService, CategoriaService>();
 builder.Services.AddScoped<IStockService, StockService>();
 builder.Services.AddScoped<ICajaService, CajaService>();
 builder.Services.AddScoped<IVentaService, VentaService>();
+builder.Services.AddScoped<IEstadisticaService, EstadisticaService>();
 
 // State Service: carrito de la venta en curso (una instancia por usuario conectado)
-builder.Services.AddScoped<CarritoState>(); // NUEVO (M6.2)
+builder.Services.AddScoped<CarritoState>();
+
+// JavaScript Interop: envoltorio del módulo kiosco.js (se libera al cerrarse el circuito)
+builder.Services.AddScoped<JsKiosco>();
+
+// Health checks: comprobación de la base de datos, expuesta en /health
+builder.Services.AddHealthChecks()
+    .AddCheck<BaseDeDatosHealthCheck>("base-de-datos"); // NUEVO (M8.1)
 
 var app = builder.Build();
 
@@ -48,6 +56,8 @@ app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages:
 app.UseHttpsRedirection();
 
 app.UseAntiforgery();
+
+app.MapHealthChecks("/health"); // NUEVO (M8.1)
 
 app.MapStaticAssets();
 app.MapRazorComponents<App>()

@@ -4,6 +4,7 @@
 @inject ICajaService CajaService
 @inject IVentaService VentaService
 @inject CarritoState Carrito
+@inject JsKiosco Js
 
 <PageTitle>Vender</PageTitle>
 
@@ -21,8 +22,9 @@
     }
     else if (ultimaVenta is not null)
     {
-        <section aria-labelledby="titulo-comprobante" class="tarjeta">
+        <section aria-labelledby="titulo-comprobante" class="tarjeta imprimible">
             <h2 id="titulo-comprobante" class="h5">Venta #@ultimaVenta.Id registrada</h2>
+            <p class="small text-secondary">@Formato.FechaHora(ultimaVenta.Fecha)</p>
 
             <ul class="list-unstyled mb-3">
                 @foreach (var item in ultimaVenta.Items)
@@ -46,7 +48,12 @@
                 Entregá de vuelto: @Formato.Dinero(ultimaVenta.Vuelto)
             </p>
 
-            <button type="button" class="btn btn-primary" @onclick="NuevaVenta">Nueva venta</button>
+            <div class="d-flex flex-wrap gap-2 no-imprimir">
+                <button type="button" class="btn btn-primary" @onclick="NuevaVenta">Nueva venta</button>
+                <button type="button" class="btn btn-outline-secondary" @onclick="ImprimirComprobanteAsync">
+                    <i class="bi bi-printer" aria-hidden="true"></i> Imprimir comprobante
+                </button>
+            </div>
         </section>
     }
     else
@@ -121,34 +128,34 @@
                         <ul class="list-unstyled mb-3">
                             @foreach (var linea in Carrito.Lineas)
                             {
-                                <li class="d-flex align-items-center gap-2 py-2 border-bottom">
-                                    <div class="flex-grow-1">
-                                        <div>@linea.Nombre</div>
-                                        <div class="small text-secondary">@Formato.Dinero(linea.PrecioUnitario) c/u</div>
+                                <li class="py-2 border-bottom">
+                                    <div class="d-flex justify-content-between align-items-start gap-2">
+                                        <div>
+                                            <div>@linea.Nombre</div>
+                                            <div class="small text-secondary">@Formato.Dinero(linea.PrecioUnitario) c/u</div>
+                                        </div>
+                                        <div class="fw-semibold text-nowrap">@Formato.Dinero(linea.Subtotal)</div>
                                     </div>
 
-                                    <div class="d-flex align-items-center gap-1">
+                                    <div class="d-flex align-items-center gap-1 mt-1">
                                         <button type="button" class="btn btn-sm btn-outline-secondary"
                                                 aria-label="Quitar una unidad de @linea.Nombre"
                                                 @onclick="() => CambiarCantidad(linea.ProductoId, linea.Cantidad - 1)">
                                             <i class="bi bi-dash" aria-hidden="true"></i>
                                         </button>
-                                        <span class="px-1" aria-live="polite">@linea.Cantidad</span>
+                                        <span class="px-2" aria-live="polite">@linea.Cantidad</span>
                                         <button type="button" class="btn btn-sm btn-outline-secondary"
                                                 disabled="@(linea.Cantidad >= linea.StockDisponible)"
                                                 aria-label="Sumar una unidad de @linea.Nombre"
                                                 @onclick="() => CambiarCantidad(linea.ProductoId, linea.Cantidad + 1)">
                                             <i class="bi bi-plus" aria-hidden="true"></i>
                                         </button>
+                                        <button type="button" class="btn btn-sm btn-outline-danger ms-auto"
+                                                aria-label="Eliminar @linea.Nombre del carrito"
+                                                @onclick="() => Carrito.Quitar(linea.ProductoId)">
+                                            <i class="bi bi-trash" aria-hidden="true"></i>
+                                        </button>
                                     </div>
-
-                                    <div class="text-end fw-semibold text-nowrap">@Formato.Dinero(linea.Subtotal)</div>
-
-                                    <button type="button" class="btn btn-sm btn-outline-danger"
-                                            aria-label="Eliminar @linea.Nombre del carrito"
-                                            @onclick="() => Carrito.Quitar(linea.ProductoId)">
-                                        <i class="bi bi-trash" aria-hidden="true"></i>
-                                    </button>
                                 </li>
                             }
                         </ul>
@@ -199,6 +206,7 @@
     private bool cargando = true;
     private bool cajaAbierta;
     private bool guardando;
+    private bool enfocarBuscador = true;
     private string? mensajeError;
 
     private bool PuedeConfirmar =>
@@ -228,6 +236,16 @@
     {
         await CargarAsync();
         cargando = false;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // El cursor queda en el buscador al entrar y después de cada venta.
+        if (enfocarBuscador && !cargando && ultimaVenta is null)
+        {
+            enfocarBuscador = false;
+            await Js.EnfocarAsync("buscar-venta");
+        }
     }
 
     private async Task CargarAsync()
@@ -303,6 +321,12 @@
     private void NuevaVenta()
     {
         ultimaVenta = null;
+        enfocarBuscador = true;
+    }
+
+    private async Task ImprimirComprobanteAsync()
+    {
+        await Js.ImprimirAsync();
     }
 
     private void AlCambiarElCarrito()
