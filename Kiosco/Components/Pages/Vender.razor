@@ -170,8 +170,8 @@
 
                             <div class="mb-3">
                                 <label for="monto-recibido" class="form-label">Monto recibido *</label>
-                                <InputNumber id="monto-recibido" class="form-control"
-                                             @bind-Value="pago.Monto" @bind-Value:event="oninput" />
+                                <input id="monto-recibido" type="number" step="any" class="form-control"
+                                       @bind="pago.Monto" @bind:event="oninput" />
                                 <ValidationMessage For="() => pago.Monto" />
                                 <div class="form-text" aria-live="polite">@TextoVuelto</div>
                             </div>
